@@ -4,10 +4,9 @@ interface PitchPlayerProps {
     player: Player;
     position: { x: number; y: number };
     onDragStart: (e: React.DragEvent<HTMLDivElement>, player: Player, source: 'pitch') => void;
-    onSwap: (source: Player, target: Player) => void;
 }
 
-export function PitchPlayer({ player, position, onDragStart, onSwap }: PitchPlayerProps) {
+export function PitchPlayer({ player, position, onDragStart }: PitchPlayerProps) {
     const getRoleColor = (duty: string) => {
         switch (duty.toLowerCase()) {
             case 'attack': return 'bg-orange-500';
@@ -17,32 +16,10 @@ export function PitchPlayer({ player, position, onDragStart, onSwap }: PitchPlay
         }
     };
 
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try {
-            const draggedPlayer = JSON.parse(e.dataTransfer.getData('player')) as Player;
-            // Determine if we should swap. 
-            // If dropping on self, do nothing.
-            if (draggedPlayer.id !== player.id) {
-                onSwap(draggedPlayer, player);
-            }
-        } catch (error) {
-            console.error("Swap error", error);
-        }
-    };
-
     return (
         <div
             draggable
             onDragStart={(e) => onDragStart(e, player, 'pitch')}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
             style={{
                 position: 'absolute',
                 left: `${position.x}%`,

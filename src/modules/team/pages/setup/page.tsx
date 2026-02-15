@@ -8,14 +8,12 @@ import { FORMATIONS } from './formations';
 export function SetupPage() {
     const {
         formation,
-        pitchPlayersList,
+        gridAssignments,
         handleFormationChange,
-        assignPlayer, // New
-        removePlayer, // Used in handleListDrop
-        swapPlayers,
+        movePlayer,
+        removePlayer,
         autoPick,
-        clearPitch,
-        lineAssignments
+        clearPitch
     } = useTactics(SQUAD_PLAYERS);
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, player: Player, source: 'list' | 'pitch') => {
@@ -23,9 +21,7 @@ export function SetupPage() {
         e.dataTransfer.setData('source', source);
     };
 
-
-
-    // Passed to List - handles removing player from pitch
+    // Passed to List - handles removing player from pitch (drop to bench)
     const handleListDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         try {
@@ -40,21 +36,19 @@ export function SetupPage() {
         }
     };
 
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
+    // Passed to Pitch - handles placing player on grid
+    const handlePitchDrop = (e: React.DragEvent<HTMLDivElement>, row: number, col: number) => {
+        try {
+            const player = JSON.parse(e.dataTransfer.getData('player')) as Player;
+            // movePlayer handles both new assignment and movement within grid
+            movePlayer(player, row, col);
+        } catch (error) {
+            console.error("Drop error", error);
+        }
     };
 
-    const handleAssignPlayer = (sourcePlayer: Player, targetLineId: string, targetPlayerId?: string, targetIndex?: number) => {
-        if (targetPlayerId) {
-            // Swap with specific player
-            const targetPlayer = SQUAD_PLAYERS.find(p => p.id === targetPlayerId);
-            if (targetPlayer) {
-                swapPlayers(sourcePlayer, targetPlayer);
-            }
-        } else {
-            // Add to empty slot (index or generic)
-            assignPlayer(sourcePlayer, targetLineId, targetIndex);
-        }
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
     };
 
     return (
@@ -88,7 +82,7 @@ export function SetupPage() {
                                 onClick={autoPick}
                                 className="px-3 py-1 text-sm font-bold rounded text-yellow-400 hover:text-white hover:bg-white/10 transition-colors"
                             >
-                                RESET
+                                AUTO
                             </button>
 
                             <div className="w-[1px] h-6 bg-white/20 mx-2"></div>
@@ -101,12 +95,12 @@ export function SetupPage() {
                             </button>
                         </div>
 
-                        <div className="flex-1 relative flex items-center justify-center">
+                        <div className="flex-1 relative flex items-center justify-center p-8">
                             <Pitch
-                                players={pitchPlayersList}
+                                gridAssignments={gridAssignments}
+                                positions={formation.positions}
                                 onDragStart={handleDragStart}
-                                onSwap={swapPlayers}
-                                onAssign={handleAssignPlayer}
+                                onDrop={handlePitchDrop}
                             />
                         </div>
                         <div className="absolute bottom-4 left-4 bg-black/50 p-2 rounded backdrop-blur text-white text-xs">
@@ -119,13 +113,12 @@ export function SetupPage() {
                     <div className="col-span-4 h-full overflow-hidden">
                         <PlayerList
                             players={SQUAD_PLAYERS}
-                            pitchPlayers={pitchPlayersList}
-                            formation={formation}
-                            onAssign={handleAssignPlayer}
-                            lineAssignments={lineAssignments}
+                            gridAssignments={gridAssignments}
+                            positions={formation.positions}
                             onDragStart={handleDragStart}
                             onDragOver={handleDragOver}
                             onDrop={handleListDrop}
+                            onAssign={(player, row, col) => movePlayer(player, row, col)}
                         />
                     </div>
                 </div>

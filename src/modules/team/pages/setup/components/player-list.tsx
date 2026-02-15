@@ -1,21 +1,19 @@
 import { useRef, useState, useEffect } from 'react';
 import type { Player } from '../data';
 import { MoreHorizontal } from 'lucide-react';
-import type { Formation } from '../formations';
-
+import type { Formation, GridPosition } from '../formations';
 
 interface PlayerListProps {
     players: Player[];
-    pitchPlayers: Array<{ player: Player | null; position: { x: number; y: number } }>;
-    lineAssignments: Record<string, (Player | null)[]>;
-    formation: Formation;
-    onAssign: (sourcePlayer: Player, targetLineId: string, targetPlayerId?: string, targetIndex?: number) => void;
+    gridAssignments: Record<string, Player>;
+    positions: GridPosition[]; // Formation slots
     onDragStart: (e: React.DragEvent<HTMLDivElement>, player: Player, source: 'list') => void;
-    onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+    onDrop: (e: React.DragEvent<HTMLDivElement>) => void; // For dropping BACK to list
     onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+    onAssign: (player: Player, row: number, col: number) => void; // New prop for menu assignment
 }
 
-export function PlayerList({ players, pitchPlayers, lineAssignments, formation, onAssign, onDragStart, onDrop, onDragOver }: PlayerListProps) {
+export function PlayerList({ players, gridAssignments, positions, onDragStart, onDrop, onDragOver, onAssign }: PlayerListProps) {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -35,23 +33,23 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
         setOpenMenuId(openMenuId === playerId ? null : playerId);
     };
 
+    // Derived state
+    const pitchPlayerIds = Object.values(gridAssignments).map(p => p.id);
+
     // Sort players: On Pitch first, then by Position/ID
     const sortedPlayers = [...players].sort((a, b) => {
-        const aOnPitch = pitchPlayers.some(p => p.player?.id === a.id);
-        const bOnPitch = pitchPlayers.some(p => p.player?.id === b.id);
+        const aOnPitch = pitchPlayerIds.includes(a.id);
+        const bOnPitch = pitchPlayerIds.includes(b.id);
 
         if (aOnPitch && !bOnPitch) return -1;
         if (!aOnPitch && bOnPitch) return 1;
         return 0;
     });
 
-    const getAssignedLine = (playerId: string) => {
-        for (const [lineId, players] of Object.entries(lineAssignments)) {
-            if (players.find(p => p && p.id === playerId)) {
-                return lineId;
-            }
-        }
-        return '-';
+    // Helper to check if a slot is occupied
+    const getSlotOccupant = (row: number, col: number) => {
+        const key = `${row}-${col}`;
+        return gridAssignments[key];
     };
 
     return (
@@ -64,6 +62,7 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
                 <div className="font-bold text-white uppercase tracking-wider text-xs">Squad</div>
                 <div className="flex space-x-2">
                     <button className="px-2 py-0.5 bg-[#374151] rounded text-white text-[10px] hover:bg-[#4b5563]">Filter</button>
+                    <div className="text-[10px] text-gray-400 self-center">{pitchPlayerIds.length} / 11</div>
                 </div>
             </div>
 
@@ -75,10 +74,9 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
                 <div></div>
             </div>
 
-            <div className="flex-1 overflow-y-auto pb-40"> {/* Extra padding for menu */}
+            <div className="flex-1 overflow-y-auto pb-40">
                 {sortedPlayers.map((player) => {
-                    const isOnPitch = pitchPlayers.some(p => p.player?.id === player.id);
-                    const assignedLine = getAssignedLine(player.id);
+                    const isOnPitch = pitchPlayerIds.includes(player.id);
                     const isMenuOpen = openMenuId === player.id;
 
                     return (
@@ -88,9 +86,9 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
                             onDragStart={(e) => onDragStart(e, player, 'list')}
                             className={`grid grid-cols-[40px_60px_1fr_30px] gap-2 p-2 border-b border-zinc-800 hover:bg-[#2c3040] items-center cursor-grab select-none relative ${isOnPitch ? 'bg-[#1a4a2c]/20' : ''}`}
                         >
-                            {/* PK (Assigned Position) */}
+                            {/* PK (Assigned Indicator) */}
                             <div className={`text-center font-bold ${isOnPitch ? 'text-green-400' : 'text-gray-600'}`}>
-                                {assignedLine}
+                                {isOnPitch ? '✓' : '-'}
                             </div>
 
                             {/* Natural Position */}
@@ -125,40 +123,38 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
                                             Assign Position
                                         </div>
                                         <div className="max-h-64 overflow-y-auto">
-                                            {formation.lines.map(line => {
-                                                const currentPlayers = lineAssignments[line.id] || [];
-                                                // Generate slots: max of players or max slots
-                                                const slots = [];
-                                                for (let i = 0; i < line.max; i++) {
-                                                    const existingPlayer = currentPlayers[i]; // May be undefined
-                                                    slots.push({ index: i, player: existingPlayer });
-                                                }
+                                            {positions.map((pos, idx) => {
+                                                const occupant = getSlotOccupant(pos.row, pos.col);
+                                                const isSelf = occupant?.id === player.id;
 
-                                                return slots.map((slot, idx) => (
+                                                return (
                                                     <button
-                                                        key={`${line.id}-${idx}`}
+                                                        key={`${pos.row}-${pos.col}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            onAssign(player, line.id, slot.player?.id, idx);
+                                                            onAssign(player, pos.row, pos.col);
                                                             setOpenMenuId(null);
                                                         }}
-                                                        className="w-full text-left px-3 py-2 hover:bg-[#374151] flex items-center justify-between group transition-colors border-b border-zinc-700/50 last:border-0"
+                                                        disabled={isSelf}
+                                                        className={`w-full text-left px-3 py-2 hover:bg-[#374151] flex items-center justify-between group transition-colors border-b border-zinc-700/50 last:border-0 ${isSelf ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     >
                                                         <div className="flex items-center space-x-2">
-                                                            <span className="font-bold text-yellow-500 w-8">{line.id}</span>
-                                                            {slot.player ? (
-                                                                <span className="text-white truncate">{slot.player.name}</span>
+                                                            <span className="font-bold text-yellow-500 w-8">{pos.label}</span>
+                                                            {occupant ? (
+                                                                <span className="text-white truncate">{occupant.name}</span>
                                                             ) : (
                                                                 <span className="text-gray-500 italic">Empty</span>
                                                             )}
                                                         </div>
-                                                        {slot.player ? (
-                                                            <div className="text-[9px] bg-blue-600/20 text-blue-400 px-1.5 rounded uppercase font-bold tracking-wider">Swap</div>
-                                                        ) : (
-                                                            <div className="text-[9px] bg-green-600/20 text-green-400 px-1.5 rounded uppercase font-bold tracking-wider">Assign</div>
+                                                        {!isSelf && (
+                                                            occupant ? (
+                                                                <div className="text-[9px] bg-blue-600/20 text-blue-400 px-1.5 rounded uppercase font-bold tracking-wider">Swap</div>
+                                                            ) : (
+                                                                <div className="text-[9px] bg-green-600/20 text-green-400 px-1.5 rounded uppercase font-bold tracking-wider">Assign</div>
+                                                            )
                                                         )}
                                                     </button>
-                                                ));
+                                                );
                                             })}
                                         </div>
                                     </div>

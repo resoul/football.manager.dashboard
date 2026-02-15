@@ -1,27 +1,44 @@
 import { useRef } from 'react';
 import type { Player } from '../data';
-import { PitchPlayer } from './pitch-player';
-
+import { PitchCell } from './pitch-cell';
+import { FIELD_ROWS, FIELD_COLS, type GridPosition } from '../formations';
 
 interface PitchProps {
-    players: Array<{ player: Player | null; position: { x: number; y: number }; lineId: string; index: number }>;
+    gridAssignments: Record<string, Player>;
+    positions: GridPosition[]; // From current formation, to show labels
     onDragStart: (e: React.DragEvent<HTMLDivElement>, player: Player, source: 'pitch') => void;
-    onSwap: (source: Player, target: Player) => void;
-    onAssign: (source: Player, lineId: string, targetId?: string, index?: number) => void;
+    onDrop: (e: React.DragEvent<HTMLDivElement>, row: number, col: number) => void;
 }
 
-export function Pitch({ players, onDragStart, onSwap, onAssign }: PitchProps) {
+export function Pitch({ gridAssignments, positions, onDragStart, onDrop }: PitchProps) {
     const pitchRef = useRef<HTMLDivElement>(null);
 
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    };
+    // Create grid cells
+    const cells = [];
+    for (let row = 0; row < FIELD_ROWS; row++) {
+        for (let col = 0; col < FIELD_COLS; col++) {
+            const key = `${row}-${col}`;
+            const player = gridAssignments[key];
+            const positionLabel = positions.find(p => p.row === row && p.col === col)?.label;
+
+            cells.push(
+                <PitchCell
+                    key={key}
+                    row={row}
+                    col={col}
+                    player={player}
+                    label={positionLabel}
+                    onDrop={onDrop}
+                    onDragStart={(e, p) => onDragStart(e, p, 'pitch')}
+                />
+            );
+        }
+    }
 
     return (
         <div
             ref={pitchRef}
-            className="relative w-full aspect-[1] bg-[#1a4a2c] rounded overflow-hidden shadow-2xl border border-white/20 select-none"
+            className="relative w-full aspect-[5/6] max-w-[500px] bg-[#1a4a2c] rounded overflow-hidden shadow-2xl border border-white/20 select-none"
             style={{
                 backgroundImage: `repeating-linear-gradient(
                     0deg,
@@ -31,52 +48,26 @@ export function Pitch({ players, onDragStart, onSwap, onAssign }: PitchProps) {
                 )`
             }}
         >
-            {/* Field Markings */}
-            <div className="absolute top-0 bottom-0 left-1/2 w-[1px] bg-white/20 transform -translate-x-1/2"></div>
-            <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-white/20 transform -translate-y-1/2"></div>
-            <div className="absolute top-1/2 left-1/2 w-[15%] aspect-square border border-white/20 rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
+            {/* Field Markings Layer - Absolute behind grid */}
+            <div className="absolute inset-0 pointer-events-none">
+                {/* Center Line */}
+                <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-white/20 transform -translate-y-1/2"></div>
+                {/* Center Circle */}
+                <div className="absolute top-1/2 left-1/2 w-[20%] aspect-square border border-white/20 rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
 
-            <div className="absolute top-0 left-1/2 w-[30%] h-[10%] border border-white/20 transform -translate-x-1/2 border-t-0"></div>
-            <div className="absolute top-0 left-1/2 w-[15%] h-[4%] border border-white/20 transform -translate-x-1/2 border-t-0"></div>
+                {/* Penalty Areas */}
+                <div className="absolute top-0 left-1/2 w-[40%] h-[15%] border border-white/20 transform -translate-x-1/2 border-t-0"></div>
+                <div className="absolute bottom-0 left-1/2 w-[40%] h-[15%] border border-white/20 transform -translate-x-1/2 border-b-0"></div>
 
-            <div className="absolute bottom-0 left-1/2 w-[30%] h-[10%] border border-white/20 transform -translate-x-1/2 border-b-0"></div>
-            <div className="absolute bottom-0 left-1/2 w-[15%] h-[4%] border border-white/20 transform -translate-x-1/2 border-b-0"></div>
-
-            <div className="absolute top-[2%] left-[2%] text-white/10 text-6xl font-black tracking-tighter rotate-90 origin-top-left">
-                TACTICS
+                {/* Goal Areas */}
+                <div className="absolute top-0 left-1/2 w-[20%] h-[6%] border border-white/20 transform -translate-x-1/2 border-t-0"></div>
+                <div className="absolute bottom-0 left-1/2 w-[20%] h-[6%] border border-white/20 transform -translate-x-1/2 border-b-0"></div>
             </div>
 
-            {players.map((p) => (
-                <div
-                    key={`${p.lineId}-${p.index}`}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ease-out z-20"
-                    style={{ left: `${p.position.x}%`, top: `${p.position.y}%` }}
-                >
-                    {p.player ? (
-                        <PitchPlayer
-                            player={p.player}
-                            position={p.position}
-                            onDragStart={onDragStart}
-                            onSwap={onSwap}
-                        />
-                    ) : (
-                        <div
-                            className="w-12 h-12 rounded-full border-2 border-dashed border-white/50 bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                try {
-                                    const sourceData = JSON.parse(e.dataTransfer.getData('player')) as Player;
-                                    onAssign(sourceData, p.lineId, undefined, p.index);
-                                } catch (err) { console.error(err) }
-                            }}
-                        >
-                            <div className="w-8 h-8 rounded-full bg-white/20"></div>
-                        </div>
-                    )}
-                </div>
-            ))}
+            {/* Grid Layer */}
+            <div className="grid grid-rows-6 grid-cols-5 w-full h-full relative z-10">
+                {cells}
+            </div>
         </div>
     );
 }

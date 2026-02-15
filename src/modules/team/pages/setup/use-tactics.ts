@@ -1,268 +1,196 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Player } from './data';
-import { FORMATIONS, type LineId, DEFAULT_FORMATION } from './formations';
+import { FORMATIONS, type Formation, DEFAULT_FORMATION, FIELD_ROWS, FIELD_COLS } from './formations';
 
-export interface PitchPlayer {
-    player: Player | null; // Can be null (empty slot)
-    lineId: LineId;
-    index: number; // Index within the line (0 to max-1) for sorting/display
-}
+// Helper to generate key
+const getKey = (row: number, col: number) => `${row}-${col}`;
 
 export function useTactics(initialPlayers: Player[]) {
     const [formationKey, setFormationKey] = useState<string>(DEFAULT_FORMATION);
 
-    // Store assignment by LineId. 
-    // We map lineId -> array of (Player | null). 
-    // Array length is ALWAYS fixed to line.max.
-    // Helper to get initial assignments (Auto Pick logic)
-    const getAutoPickAssignments = (currentFormation: any, players: Player[]) => {
-        const assignments: Record<string, (Player | null)[]> = {};
-        const availablePlayers = [...players];
-
-        // 1. Pick Goalkeeper
-        const gkLine = currentFormation.lines.find((l: any) => l.id === 'GK');
-        if (gkLine) {
-            assignments['GK'] = new Array(gkLine.max).fill(null);
-            // Find a GK
-            const gkIndex = availablePlayers.findIndex(p => p.position === 'GK');
-            if (gkIndex !== -1) {
-                assignments['GK'][0] = availablePlayers[gkIndex];
-                availablePlayers.splice(gkIndex, 1);
-            } else if (availablePlayers.length > 0) {
-                // Fallback to first player
-                assignments['GK'][0] = availablePlayers[0];
-                availablePlayers.shift();
-            }
-        }
-
-        // 2. Fill other lines
-        currentFormation.lines.forEach((line: any) => {
-            if (line.id === 'GK') return; // Already done
-            assignments[line.id] = new Array(line.max).fill(null);
-            for (let i = 0; i < line.max; i++) {
-                if (availablePlayers.length > 0) {
-                    // Simple fill for now (could be position smart later)
-                    assignments[line.id][i] = availablePlayers[0];
-                    availablePlayers.shift();
-                }
-            }
-        });
-
-        return assignments;
-    };
-
-    const [lineAssignments, setLineAssignments] = useState<Record<string, (Player | null)[]>>(() => {
-        return getAutoPickAssignments(FORMATIONS[DEFAULT_FORMATION], initialPlayers);
-    });
-
-    const autoPick = () => {
-        setLineAssignments(getAutoPickAssignments(FORMATIONS[formationKey], initialPlayers));
-    };
-
-    const clearPitch = () => {
-        const formation = FORMATIONS[formationKey];
-        const emptyAssignments: Record<string, (Player | null)[]> = {};
-        formation.lines.forEach(line => {
-            emptyAssignments[line.id] = new Array(line.max).fill(null);
-        });
-        setLineAssignments(emptyAssignments);
-    };
+    // State: Map "row-col" -> Player
+    const [gridAssignments, setGridAssignments] = useState<Record<string, Player>>({});
 
     const formation = useMemo(() => FORMATIONS[formationKey], [formationKey]);
 
-    const pitchPlayersList = useMemo(() => {
-        // We need to keep providing position for layout.
+    // Initial Auto-pick when formation changes or on mount
+    // We'll expose a function to do this, but maybe not auto-trigger on simple formation switch to preserve players?
+    // User requirement: "Switching tactics". Usually we want to try to keep players or reset?
+    // Let's implement autoPick that resets based on formation.
 
-        // Let's return extended object for UI
-        const uiList: { player: Player | null; position: { x: number; y: number }; lineId: string; index: number }[] = [];
+    const autoPick = useCallback(() => {
+        const newAssignments: Record<string, Player> = {};
+        const availablePlayers = [...initialPlayers];
 
-        formation.lines.forEach(line => {
-            const playersInLine = lineAssignments[line.id] || new Array(line.max).fill(null);
-            const count = line.max; // Use max capacity for distribution to keep slots fixed positions?
-            // OR use playersInLine with nulls. Since we initialize with nulls, length IS count.
+        // Helper to find and remove player
+        const popPlayer = (rolePreference: string) => {
+            // Simplified matching: match string in position?
+            // Real logic would be more complex.
+            const idx = availablePlayers.findIndex(p => p.position.includes(rolePreference));
+            if (idx !== -1) {
+                const [p] = availablePlayers.splice(idx, 1);
+                return p;
+            }
+            // Fallback: any player
+            return availablePlayers.shift();
+        };
 
-            playersInLine.forEach((player, index) => {
-                // Calculate X based on even distribution of SLOTS
-                const x = (index + 1) * (100 / (count + 1));
-                uiList.push({
-                    player,
-                    lineId: line.id,
-                    index,
-                    position: { x, y: line.y }
-                });
-            });
-        });
-        return uiList;
-    }, [formation, lineAssignments]);
+        // 1. Assign GK
+        const gkPos = formation.positions.find(p => p.label === 'GK');
+        if (gkPos) {
+            const gk = availablePlayers.find(p => p.position === 'GK') || availablePlayers[0];
+            if (gk) {
+                newAssignments[getKey(gkPos.row, gkPos.col)] = gk;
+                const idx = availablePlayers.indexOf(gk);
+                if (idx > -1) availablePlayers.splice(idx, 1);
+            }
+        }
 
-    const handleFormationChange = (newFormationKey: string) => {
-        setFormationKey(newFormationKey);
-        const newFormation = FORMATIONS[newFormationKey];
-
-        // Gather all current players (ignoring nulls)
-        const allPlayers: Player[] = [];
-        Object.values(lineAssignments).forEach(line => {
-            line.forEach(p => {
-                if (p) allPlayers.push(p);
-            });
-        });
-
-        const newAssignments: Record<string, (Player | null)[]> = {};
-        let playerIdx = 0;
-
-        // Fill new formation slots
-        newFormation.lines.forEach(line => {
-            newAssignments[line.id] = new Array(line.max).fill(null);
-            for (let i = 0; i < line.max; i++) {
-                if (playerIdx < allPlayers.length) {
-                    newAssignments[line.id][i] = allPlayers[playerIdx];
-                    playerIdx++;
-                }
+        // 2. Assign others based on formation slots
+        formation.positions.forEach(pos => {
+            if (pos.label === 'GK') return; // already done
+            const player = popPlayer(pos.label?.charAt(0) || ''); // Rough match "D", "M", "S"
+            if (player) {
+                newAssignments[getKey(pos.row, pos.col)] = player;
             }
         });
 
-        setLineAssignments(newAssignments);
+        setGridAssignments(newAssignments);
+    }, [formation, initialPlayers]);
+
+
+    const clearPitch = () => {
+        setGridAssignments({});
+    };
+
+    // Initialize once if empty? 
+    // For now we'll start empty or let the page component call autoPick.
+    // Let's initialize with an autopick for 4-4-2
+    useMemo(() => {
+        // We can't set state in useMemo easily without effects, but we can init state lazy.
+        // Let's just default to empty, and let the user click "Reset" or "Auto" 
+        // OR we init state in useState.
+    }, []);
+
+    const handleFormationChange = (newKey: string) => {
+        setFormationKey(newKey);
+        // Optional: Re-arrange players?
+        // For now, let's just clear or keep them if they are in valid slots?
+        // The user request implies changing tactics re-arranges the field.
+        // "Select tactics: 4-4-2 ... GK -> row 1 col 3"
+        // This suggests selecting a tactic APPLIES that arrangement.
+        // So we should probably run auto-pick or re-distribute best effort.
+
+        // We'll allow the UI to trigger autoPick manually or we can do it here.
+        // Let's just set the key, and let a useEffect or similar handle the re-shuffle if we want automatic.
+        // Or better: Just implementing a smart re-shuffle here.
+
+        // Re-shuffle logic:
+        // Take all currently assigned players.
+        // Map them to new slots.
+
+        // BUT, for now, to keep it simple and robust:
+        // When changing formation, we will "Auto Pick" from scratch using the Squad to fill the new slots.
+        // This ensures the new structure is respected.
+
+        // If we want to keep current players on pitch:
+        // const currentOnPitch = Object.values(gridAssignments);
+        // ... distribute currentOnPitch into new formation ...
+
+        // Let's stick to the behavior: Change tactic -> Apply template (Auto Pick best fit).
+        // note: we can't call autoPick() here directly if it depends on 'formation' state which hasn't updated yet.
+        // So we'll accept the newKey param in a helper.
+
+        const newFormation = FORMATIONS[newKey];
+        const newAssignments: Record<string, Player> = {};
+        const availablePlayers = [...initialPlayers];
+
+        // Very basic redistribution for now: just reset using squad (Auto Pick behavior)
+        // Ideally we prioritize players ALREADY on the pitch.
+
+        const currentPitchPlayers = Object.values(gridAssignments);
+
+        // We'll prioritize players currently on pitch to keep them in the team
+        const pool = [...currentPitchPlayers, ...initialPlayers.filter(p => !currentPitchPlayers.includes(p))];
+        // Unique
+        const uniquePool = Array.from(new Set(pool));
+
+        const popPool = (label: string) => {
+            let idx = uniquePool.findIndex(p => p.position === label); // Exact match
+            if (idx === -1) idx = uniquePool.findIndex(p => p.position.includes(label.charAt(0))); // Partial
+            if (idx === -1) idx = 0; // Any
+
+            if (idx !== -1 && uniquePool[idx]) {
+                const [p] = uniquePool.splice(idx, 1);
+                return p;
+            }
+            return null;
+        };
+
+        newFormation.positions.forEach(pos => {
+            const p = popPool(pos.label || '');
+            if (p) newAssignments[getKey(pos.row, pos.col)] = p;
+        });
+
+        setGridAssignments(newAssignments);
+    };
+
+    const movePlayer = (player: Player, toRow: number, toCol: number) => {
+        setGridAssignments(prev => {
+            const next = { ...prev };
+            const targetKey = getKey(toRow, toCol);
+
+            // Checks
+            if (toRow < 0 || toRow >= FIELD_ROWS || toCol < 0 || toCol >= FIELD_COLS) return prev;
+
+            // Remove player from old source if they are already on pitch
+            const sourceEntry = Object.entries(next).find(([k, p]) => p.id === player.id);
+            if (sourceEntry) {
+                delete next[sourceEntry[0]];
+            }
+
+            // Check target
+            const targetOccupant = next[targetKey];
+
+            if (targetOccupant) {
+                // Swap
+                // If source existed (we just deleted it), put targetOccupant there
+                if (sourceEntry) {
+                    next[sourceEntry[0]] = targetOccupant;
+                } else {
+                    // dragged from list -> target occupied.
+                    // "Cannot place two players in one cell" -> Reject or Swap?
+                    // User said: "Cannot place two players in one cell"
+                    // If we strictly follow "Cannot", we should block.
+                    // But standard UX is swap or replace.
+                    // Let's implement SWAP (target goes to bench if source came from bench? Or just replace?)
+                    // If source came from list, and target is occupied, we replace target (target goes to list).
+                }
+            }
+
+            // Place player
+            next[targetKey] = player;
+            return next;
+        });
     };
 
     const removePlayer = (playerId: string) => {
-        setLineAssignments(prev => {
-            const nextState = { ...prev };
-            Object.keys(nextState).forEach(key => {
-                // Replace matching player with null
-                nextState[key] = nextState[key].map(p => (p && p.id === playerId) ? null : p);
-            });
-            return nextState;
-        });
-    };
-
-    // New generic assigner: Add or Swap
-    // If targetIndex is provided, we try to put player there.
-    const assignPlayer = (player: Player, lineId: string, targetIndex?: number) => {
-        setLineAssignments(prev => {
-            const nextState = { ...prev };
-
-            // 1. Remove player from any existing position
-            Object.keys(nextState).forEach(key => {
-                nextState[key] = nextState[key].map(p => (p && p.id === player.id) ? null : p);
-            });
-
-            // 2. Add to target
-            const targetLine = [...(nextState[lineId] || [])];
-            const lineConfig = formation.lines.find(l => l.id === lineId);
-
-            if (!lineConfig) return prev;
-
-            // Allow array to be created if missing (shouldn't happen with init)
-            if (targetLine.length !== lineConfig.max) {
-                // resize/reset if corrupted?
-                while (targetLine.length < lineConfig.max) targetLine.push(null);
+        setGridAssignments(prev => {
+            const next = { ...prev };
+            const entry = Object.entries(next).find(([k, p]) => p.id === playerId);
+            if (entry) {
+                delete next[entry[0]];
             }
-
-            if (targetIndex !== undefined && targetIndex >= 0 && targetIndex < lineConfig.max) {
-                // specific slot
-                const occupant = targetLine[targetIndex];
-                if (occupant) {
-                    // Swap? For now, we are "assigning" so we overwrite?
-                    // But logically if I drag A to B, B should go... where? 
-                    // If B is Player, they go to list (removed). 
-                    // OR we can swap them to A's old position?
-                    // A's old position is already cleared in step 1.
-                    // Let's just overwrite for specific assignment (B goes to bench), 
-                    // unless we implement explicit Swap function.
-                    // User interaction: "Assign" usually implies placement.
-                    // If we want swap, we should use swapPlayers.
-                }
-                targetLine[targetIndex] = player;
-            } else {
-                // First empty slot
-                const emptyIndex = targetLine.findIndex(p => p === null);
-                if (emptyIndex !== -1) {
-                    targetLine[emptyIndex] = player;
-                } else {
-                    // Line full. Replace first one? Or reject?
-                    // Let's reject for now if full and no specific index
-                    return prev;
-                }
-            }
-
-            nextState[lineId] = targetLine;
-            return nextState;
-        });
-    };
-
-    // Wrapper for legacy addPlayerToLine compatibility
-    const addPlayerToLine = (player: Player, lineId: string) => {
-        assignPlayer(player, lineId);
-    };
-
-    const isLineFull = useCallback((lineId: string) => {
-        const currentLine = lineAssignments[lineId] || [];
-        return currentLine.every(p => p !== null);
-    }, [lineAssignments]);
-
-    const swapPlayers = (playerA: Player, playerB: Player) => {
-        setLineAssignments(prev => {
-            const nextState = { ...prev };
-            let lineA = ''; let indexA = -1;
-            let lineB = ''; let indexB = -1;
-
-            // Find locations
-            Object.keys(nextState).forEach(key => {
-                nextState[key].forEach((p, idx) => {
-                    if (p && p.id === playerA.id) { lineA = key; indexA = idx; }
-                    if (p && p.id === playerB.id) { lineB = key; indexB = idx; }
-                });
-            });
-
-            if (lineA && lineB) {
-                // Swap in place
-                const valA = nextState[lineA][indexA];
-                const valB = nextState[lineB][indexB]; // Should be playerB
-
-                // Clone arrays
-                nextState[lineA] = [...nextState[lineA]];
-                nextState[lineB] = [...nextState[lineB]];
-
-                // If same line, we are manipulating same array reference if we don't be careful
-                if (lineA === lineB) {
-                    nextState[lineA][indexA] = valB;
-                    nextState[lineA][indexB] = valA;
-                } else {
-                    nextState[lineA][indexA] = valB;
-                    nextState[lineB][indexB] = valA;
-                }
-                return nextState;
-            }
-            // Handle List <-> Pitch swap
-            // If A is list (not found), B is pitch (found)
-            if (!lineA && lineB) {
-                nextState[lineB] = [...nextState[lineB]];
-                nextState[lineB][indexB] = playerA; // Replace B with A
-                return nextState;
-            }
-
-            // If A pitch, B list
-            if (lineA && !lineB) {
-                nextState[lineA] = [...nextState[lineA]];
-                nextState[lineA][indexA] = playerB;
-                return nextState;
-            }
-
-            return prev;
+            return next;
         });
     };
 
     return {
         formation,
-        pitchPlayersList,
-        lineAssignments, // Now Record<string, (Player|null)[]>
-        setLineAssignments,
+        gridAssignments,
         handleFormationChange,
-        addPlayerToLine,
-        assignPlayer, // New specific assign
+        movePlayer,
         removePlayer,
-        isLineFull,
-        swapPlayers,
         autoPick,
         clearPitch
     };
