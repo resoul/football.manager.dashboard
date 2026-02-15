@@ -9,16 +9,16 @@ export function ModuleProvider() {
     const location = useLocation();
     const path = location.pathname;
 
-    const isIam = path.startsWith('/main');
+    const isTeam = path.startsWith('/team');
 
-    if (isIam) {
+    if (isTeam) {
         return (
             <Routes>
                 <Route
-                    path="/main/*"
+                    path="/team/*"
                     element={
                         <Suspense fallback={<ScreenLoader />}>
-                            <MainModule />
+                            <TeamModule />
                         </Suspense>
                     }
                 />
@@ -32,7 +32,7 @@ export function ModuleProvider() {
                 path="/*"
                 element={
                     <Suspense fallback={<ScreenLoader />}>
-                        <TeamModule />
+                        <MainModule />
                     </Suspense>
                 }
             />

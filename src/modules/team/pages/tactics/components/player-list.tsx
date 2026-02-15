@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import type { Player } from '../data';
 import { MoreHorizontal } from 'lucide-react';
-import type { Formation, GridPosition } from '../formations';
+import type { GridPosition } from '../formations';
 
 interface PlayerListProps {
     players: Player[];
@@ -96,8 +96,11 @@ export function PlayerList({ players, gridAssignments, positions, onDragStart, o
                                 {player.position}
                             </div>
 
-                            {/* Player Name & Number */}
-                            <div className="flex items-center space-x-2 truncate">
+                            {/* Player Name & Number - Clickable */}
+                            <div
+                                className="flex items-center space-x-2 truncate cursor-pointer hover:text-green-400 transition-colors"
+                                onClick={() => window.location.href = `/team/player/${player.id}`}
+                            >
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${isOnPitch ? 'bg-green-600' : 'bg-gray-700'}`}>
                                     {player.number}
                                 </div>

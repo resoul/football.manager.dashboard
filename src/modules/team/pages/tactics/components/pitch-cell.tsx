@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import type { Player } from '../../data';
+import type { Player } from '../data';
 import { PitchPlayer } from './pitch-player';
 
 interface PitchCellProps {
@@ -12,8 +11,6 @@ interface PitchCellProps {
 }
 
 export function PitchCell({ row, col, player, label, onDrop, onDragStart }: PitchCellProps) {
-    const isOver = false; // We could use state for local hover effect, but keeping it simple for now
-
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -48,10 +45,6 @@ export function PitchCell({ row, col, player, label, onDrop, onDragStart }: Pitc
                         player={player}
                         position={{ x: 50, y: 50 }} // Centered in relative cell
                         onDragStart={(e, p) => onDragStart(e, p)}
-                        // Swap not needed here, handled by parent/dnd
-                        onSwap={() => { }}
-                    // We override the absolute positioning of PitchPlayer for the cell context if necessary
-                    // PitchPlayer uses absolute centering. 
                     />
                 </div>
             ) : (
