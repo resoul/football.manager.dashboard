@@ -10,11 +10,11 @@ export function SetupPage() {
         formation,
         pitchPlayersList,
         handleFormationChange,
-        addPlayerToLine,
-        removePlayer,
-        isLineFull,
+        assignPlayer, // New
+        removePlayer, // Used in handleListDrop
         swapPlayers,
         autoPick,
+        clearPitch,
         lineAssignments
     } = useTactics(SQUAD_PLAYERS);
 
@@ -23,10 +23,7 @@ export function SetupPage() {
         e.dataTransfer.setData('source', source);
     };
 
-    // Passed to Pitch - handles dropping on a specific line
-    const handlePitchDrop = (player: Player, lineId: string) => {
-        addPlayerToLine(player, lineId);
-    };
+
 
     // Passed to List - handles removing player from pitch
     const handleListDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -47,7 +44,7 @@ export function SetupPage() {
         e.preventDefault();
     };
 
-    const handleAssignPlayer = (sourcePlayer: Player, targetLineId: string, targetPlayerId?: string) => {
+    const handleAssignPlayer = (sourcePlayer: Player, targetLineId: string, targetPlayerId?: string, targetIndex?: number) => {
         if (targetPlayerId) {
             // Swap with specific player
             const targetPlayer = SQUAD_PLAYERS.find(p => p.id === targetPlayerId);
@@ -55,8 +52,8 @@ export function SetupPage() {
                 swapPlayers(sourcePlayer, targetPlayer);
             }
         } else {
-            // Add to empty slot
-            addPlayerToLine(sourcePlayer, targetLineId);
+            // Add to empty slot (index or generic)
+            assignPlayer(sourcePlayer, targetLineId, targetIndex);
         }
     };
 
@@ -93,16 +90,23 @@ export function SetupPage() {
                             >
                                 RESET
                             </button>
+
+                            <div className="w-[1px] h-6 bg-white/20 mx-2"></div>
+
+                            <button
+                                onClick={clearPitch}
+                                className="px-3 py-1 text-sm font-bold rounded text-red-400 hover:text-white hover:bg-white/10 transition-colors"
+                            >
+                                CLEAR
+                            </button>
                         </div>
 
                         <div className="flex-1 relative flex items-center justify-center">
                             <Pitch
                                 players={pitchPlayersList}
-                                formation={formation}
-                                onDropLine={handlePitchDrop}
-                                onPlayerDragStart={handleDragStart}
-                                isLineFull={isLineFull}
+                                onDragStart={handleDragStart}
                                 onSwap={swapPlayers}
+                                onAssign={handleAssignPlayer}
                             />
                         </div>
                         <div className="absolute bottom-4 left-4 bg-black/50 p-2 rounded backdrop-blur text-white text-xs">

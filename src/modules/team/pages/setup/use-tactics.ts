@@ -3,7 +3,7 @@ import type { Player } from './data';
 import { FORMATIONS, type LineId, DEFAULT_FORMATION } from './formations';
 
 export interface PitchPlayer {
-    player: Player;
+    player: Player | null; // Can be null (empty slot)
     lineId: LineId;
     index: number; // Index within the line (0 to max-1) for sorting/display
 }
@@ -12,25 +12,25 @@ export function useTactics(initialPlayers: Player[]) {
     const [formationKey, setFormationKey] = useState<string>(DEFAULT_FORMATION);
 
     // Store assignment by LineId. 
-    // We map lineId -> array of players. 
-    // This makes it easy to "distribute evenly" because we just render the array length.
+    // We map lineId -> array of (Player | null). 
+    // Array length is ALWAYS fixed to line.max.
     // Helper to get initial assignments (Auto Pick logic)
     const getAutoPickAssignments = (currentFormation: any, players: Player[]) => {
-        const assignments: Record<string, Player[]> = {};
+        const assignments: Record<string, (Player | null)[]> = {};
         const availablePlayers = [...players];
 
         // 1. Pick Goalkeeper
         const gkLine = currentFormation.lines.find((l: any) => l.id === 'GK');
         if (gkLine) {
-            assignments['GK'] = [];
+            assignments['GK'] = new Array(gkLine.max).fill(null);
             // Find a GK
             const gkIndex = availablePlayers.findIndex(p => p.position === 'GK');
             if (gkIndex !== -1) {
-                assignments['GK'].push(availablePlayers[gkIndex]);
+                assignments['GK'][0] = availablePlayers[gkIndex];
                 availablePlayers.splice(gkIndex, 1);
             } else if (availablePlayers.length > 0) {
                 // Fallback to first player
-                assignments['GK'].push(availablePlayers[0]);
+                assignments['GK'][0] = availablePlayers[0];
                 availablePlayers.shift();
             }
         }
@@ -38,11 +38,11 @@ export function useTactics(initialPlayers: Player[]) {
         // 2. Fill other lines
         currentFormation.lines.forEach((line: any) => {
             if (line.id === 'GK') return; // Already done
-            assignments[line.id] = [];
+            assignments[line.id] = new Array(line.max).fill(null);
             for (let i = 0; i < line.max; i++) {
                 if (availablePlayers.length > 0) {
                     // Simple fill for now (could be position smart later)
-                    assignments[line.id].push(availablePlayers[0]);
+                    assignments[line.id][i] = availablePlayers[0];
                     availablePlayers.shift();
                 }
             }
@@ -51,7 +51,7 @@ export function useTactics(initialPlayers: Player[]) {
         return assignments;
     };
 
-    const [lineAssignments, setLineAssignments] = useState<Record<string, Player[]>>(() => {
+    const [lineAssignments, setLineAssignments] = useState<Record<string, (Player | null)[]>>(() => {
         return getAutoPickAssignments(FORMATIONS[DEFAULT_FORMATION], initialPlayers);
     });
 
@@ -59,145 +59,192 @@ export function useTactics(initialPlayers: Player[]) {
         setLineAssignments(getAutoPickAssignments(FORMATIONS[formationKey], initialPlayers));
     };
 
+    const clearPitch = () => {
+        const formation = FORMATIONS[formationKey];
+        const emptyAssignments: Record<string, (Player | null)[]> = {};
+        formation.lines.forEach(line => {
+            emptyAssignments[line.id] = new Array(line.max).fill(null);
+        });
+        setLineAssignments(emptyAssignments);
+    };
+
     const formation = useMemo(() => FORMATIONS[formationKey], [formationKey]);
 
-    // Derived state: Flatten players for the PlayerList to know who is selected
     const pitchPlayersList = useMemo(() => {
-        const list: { player: Player; position: { x: number; y: number } }[] = [];
+        // We need to keep providing position for layout.
+
+        // Let's return extended object for UI
+        const uiList: { player: Player | null; position: { x: number; y: number }; lineId: string; index: number }[] = [];
+
         formation.lines.forEach(line => {
-            const playersInLine = lineAssignments[line.id] || [];
+            const playersInLine = lineAssignments[line.id] || new Array(line.max).fill(null);
+            const count = line.max; // Use max capacity for distribution to keep slots fixed positions?
+            // OR use playersInLine with nulls. Since we initialize with nulls, length IS count.
+
             playersInLine.forEach((player, index) => {
-                // Calculate X based on even distribution
-                // 1 player: 50%
-                // 2 players: 33%, 66% ? Or spread wider?
-                // Let's use: (index + 1) * (100 / (count + 1))
-                const count = playersInLine.length;
+                // Calculate X based on even distribution of SLOTS
                 const x = (index + 1) * (100 / (count + 1));
-                list.push({
+                uiList.push({
                     player,
+                    lineId: line.id,
+                    index,
                     position: { x, y: line.y }
                 });
             });
         });
-        return list;
+        return uiList;
     }, [formation, lineAssignments]);
 
     const handleFormationChange = (newFormationKey: string) => {
         setFormationKey(newFormationKey);
         const newFormation = FORMATIONS[newFormationKey];
 
-        // Redistribute players to fit new limits
-        // Gather all current players
+        // Gather all current players (ignoring nulls)
         const allPlayers: Player[] = [];
-        Object.values(lineAssignments).forEach(players => allPlayers.push(...players));
+        Object.values(lineAssignments).forEach(line => {
+            line.forEach(p => {
+                if (p) allPlayers.push(p);
+            });
+        });
 
-        const newAssignments: Record<string, Player[]> = {};
+        const newAssignments: Record<string, (Player | null)[]> = {};
         let playerIdx = 0;
 
-        // Fill lines according to new max
+        // Fill new formation slots
         newFormation.lines.forEach(line => {
-            newAssignments[line.id] = [];
+            newAssignments[line.id] = new Array(line.max).fill(null);
             for (let i = 0; i < line.max; i++) {
                 if (playerIdx < allPlayers.length) {
-                    newAssignments[line.id].push(allPlayers[playerIdx]);
+                    newAssignments[line.id][i] = allPlayers[playerIdx];
                     playerIdx++;
                 }
             }
         });
 
-        // If we have excess players (e.g. going 4-4-2 to 4-3-3, 1 player left out), 
-        // they are removed from pitch (returned to squad implicitly) state-wise.
         setLineAssignments(newAssignments);
-    };
-
-    const addPlayerToLine = (player: Player, lineId: string) => {
-        setLineAssignments(prev => {
-            const currentLine = prev[lineId] || [];
-            const lineConfig = formation.lines.find(l => l.id === lineId);
-
-            if (!lineConfig) return prev;
-
-            // If line is full, do we swap? Or reject?
-            // Requirement: "If line is filled - return player back"
-            if (currentLine.length >= lineConfig.max) {
-                return prev;
-            }
-
-            // Check if player is already in THIS line
-            if (currentLine.find(p => p.id === player.id)) return prev;
-
-            // Check if player is in OTHER lines, remove them first
-            const nextState = { ...prev };
-            Object.keys(nextState).forEach(key => {
-                nextState[key] = nextState[key].filter(p => p.id !== player.id);
-            });
-
-            // Add to new line
-            nextState[lineId] = [...(nextState[lineId] || []), player];
-            return nextState;
-        });
     };
 
     const removePlayer = (playerId: string) => {
         setLineAssignments(prev => {
             const nextState = { ...prev };
             Object.keys(nextState).forEach(key => {
-                nextState[key] = nextState[key].filter(p => p.id !== playerId);
+                // Replace matching player with null
+                nextState[key] = nextState[key].map(p => (p && p.id === playerId) ? null : p);
             });
             return nextState;
         });
     };
 
+    // New generic assigner: Add or Swap
+    // If targetIndex is provided, we try to put player there.
+    const assignPlayer = (player: Player, lineId: string, targetIndex?: number) => {
+        setLineAssignments(prev => {
+            const nextState = { ...prev };
+
+            // 1. Remove player from any existing position
+            Object.keys(nextState).forEach(key => {
+                nextState[key] = nextState[key].map(p => (p && p.id === player.id) ? null : p);
+            });
+
+            // 2. Add to target
+            const targetLine = [...(nextState[lineId] || [])];
+            const lineConfig = formation.lines.find(l => l.id === lineId);
+
+            if (!lineConfig) return prev;
+
+            // Allow array to be created if missing (shouldn't happen with init)
+            if (targetLine.length !== lineConfig.max) {
+                // resize/reset if corrupted?
+                while (targetLine.length < lineConfig.max) targetLine.push(null);
+            }
+
+            if (targetIndex !== undefined && targetIndex >= 0 && targetIndex < lineConfig.max) {
+                // specific slot
+                const occupant = targetLine[targetIndex];
+                if (occupant) {
+                    // Swap? For now, we are "assigning" so we overwrite?
+                    // But logically if I drag A to B, B should go... where? 
+                    // If B is Player, they go to list (removed). 
+                    // OR we can swap them to A's old position?
+                    // A's old position is already cleared in step 1.
+                    // Let's just overwrite for specific assignment (B goes to bench), 
+                    // unless we implement explicit Swap function.
+                    // User interaction: "Assign" usually implies placement.
+                    // If we want swap, we should use swapPlayers.
+                }
+                targetLine[targetIndex] = player;
+            } else {
+                // First empty slot
+                const emptyIndex = targetLine.findIndex(p => p === null);
+                if (emptyIndex !== -1) {
+                    targetLine[emptyIndex] = player;
+                } else {
+                    // Line full. Replace first one? Or reject?
+                    // Let's reject for now if full and no specific index
+                    return prev;
+                }
+            }
+
+            nextState[lineId] = targetLine;
+            return nextState;
+        });
+    };
+
+    // Wrapper for legacy addPlayerToLine compatibility
+    const addPlayerToLine = (player: Player, lineId: string) => {
+        assignPlayer(player, lineId);
+    };
+
     const isLineFull = useCallback((lineId: string) => {
         const currentLine = lineAssignments[lineId] || [];
-        const lineConfig = formation.lines.find(l => l.id === lineId);
-        return lineConfig ? currentLine.length >= lineConfig.max : true;
-    }, [formation, lineAssignments]);
+        return currentLine.every(p => p !== null);
+    }, [lineAssignments]);
 
     const swapPlayers = (playerA: Player, playerB: Player) => {
         setLineAssignments(prev => {
             const nextState = { ...prev };
-            let lineA: string | undefined;
-            let lineB: string | undefined;
+            let lineA = ''; let indexA = -1;
+            let lineB = ''; let indexB = -1;
 
-            // Find lines for both players
+            // Find locations
             Object.keys(nextState).forEach(key => {
-                if (nextState[key].find(p => p.id === playerA.id)) lineA = key;
-                if (nextState[key].find(p => p.id === playerB.id)) lineB = key;
+                nextState[key].forEach((p, idx) => {
+                    if (p && p.id === playerA.id) { lineA = key; indexA = idx; }
+                    if (p && p.id === playerB.id) { lineB = key; indexB = idx; }
+                });
             });
 
-            // Case 1: Both on pitch (Swap positions)
-            // Case 1: Both on pitch (Swap positions)
             if (lineA && lineB) {
+                // Swap in place
+                const valA = nextState[lineA][indexA];
+                const valB = nextState[lineB][indexB]; // Should be playerB
+
+                // Clone arrays
+                nextState[lineA] = [...nextState[lineA]];
+                nextState[lineB] = [...nextState[lineB]];
+
+                // If same line, we are manipulating same array reference if we don't be careful
                 if (lineA === lineB) {
-                    // Same line swap
-                    nextState[lineA] = nextState[lineA].map(p => {
-                        if (p.id === playerA.id) return playerB;
-                        if (p.id === playerB.id) return playerA;
-                        return p;
-                    });
+                    nextState[lineA][indexA] = valB;
+                    nextState[lineA][indexB] = valA;
                 } else {
-                    // Different line swap
-                    // Replace A with B in line A
-                    nextState[lineA] = nextState[lineA].map(p => p.id === playerA.id ? playerB : p);
-                    // Replace B with A in line B
-                    nextState[lineB] = nextState[lineB].map(p => p.id === playerB.id ? playerA : p);
+                    nextState[lineA][indexA] = valB;
+                    nextState[lineB][indexB] = valA;
                 }
                 return nextState;
             }
-
-            // Case 2: A is from List, B is on Pitch (Substitution)
+            // Handle List <-> Pitch swap
+            // If A is list (not found), B is pitch (found)
             if (!lineA && lineB) {
-                // Remove B from line B and add A
-                // Effectively replacing B with A
-                nextState[lineB] = nextState[lineB].map(p => p.id === playerB.id ? playerA : p);
+                nextState[lineB] = [...nextState[lineB]];
+                nextState[lineB][indexB] = playerA; // Replace B with A
                 return nextState;
             }
 
-            // Case 3: A on Pitch, B from List (Reverse substitution? Drag pitch player to list player?)
-            // Not typical drag flow but handled logic wise:
+            // If A pitch, B list
             if (lineA && !lineB) {
-                nextState[lineA] = nextState[lineA].map(p => p.id === playerA.id ? playerB : p);
+                nextState[lineA] = [...nextState[lineA]];
+                nextState[lineA][indexA] = playerB;
                 return nextState;
             }
 
@@ -208,13 +255,15 @@ export function useTactics(initialPlayers: Player[]) {
     return {
         formation,
         pitchPlayersList,
-        lineAssignments,
+        lineAssignments, // Now Record<string, (Player|null)[]>
         setLineAssignments,
         handleFormationChange,
         addPlayerToLine,
+        assignPlayer, // New specific assign
         removePlayer,
         isLineFull,
         swapPlayers,
-        autoPick
+        autoPick,
+        clearPitch
     };
 }

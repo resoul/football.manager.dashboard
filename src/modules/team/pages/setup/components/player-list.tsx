@@ -6,10 +6,10 @@ import type { Formation } from '../formations';
 
 interface PlayerListProps {
     players: Player[];
-    pitchPlayers: Array<{ player: Player; position: { x: number; y: number } }>;
-    lineAssignments: Record<string, Player[]>;
+    pitchPlayers: Array<{ player: Player | null; position: { x: number; y: number } }>;
+    lineAssignments: Record<string, (Player | null)[]>;
     formation: Formation;
-    onAssign: (sourcePlayer: Player, targetLineId: string, targetPlayerId?: string) => void;
+    onAssign: (sourcePlayer: Player, targetLineId: string, targetPlayerId?: string, targetIndex?: number) => void;
     onDragStart: (e: React.DragEvent<HTMLDivElement>, player: Player, source: 'list') => void;
     onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
     onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
@@ -37,8 +37,8 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
 
     // Sort players: On Pitch first, then by Position/ID
     const sortedPlayers = [...players].sort((a, b) => {
-        const aOnPitch = pitchPlayers.some(p => p.player.id === a.id);
-        const bOnPitch = pitchPlayers.some(p => p.player.id === b.id);
+        const aOnPitch = pitchPlayers.some(p => p.player?.id === a.id);
+        const bOnPitch = pitchPlayers.some(p => p.player?.id === b.id);
 
         if (aOnPitch && !bOnPitch) return -1;
         if (!aOnPitch && bOnPitch) return 1;
@@ -47,7 +47,7 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
 
     const getAssignedLine = (playerId: string) => {
         for (const [lineId, players] of Object.entries(lineAssignments)) {
-            if (players.find(p => p.id === playerId)) {
+            if (players.find(p => p && p.id === playerId)) {
                 return lineId;
             }
         }
@@ -77,7 +77,7 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
 
             <div className="flex-1 overflow-y-auto pb-40"> {/* Extra padding for menu */}
                 {sortedPlayers.map((player) => {
-                    const isOnPitch = pitchPlayers.some(p => p.player.id === player.id);
+                    const isOnPitch = pitchPlayers.some(p => p.player?.id === player.id);
                     const assignedLine = getAssignedLine(player.id);
                     const isMenuOpen = openMenuId === player.id;
 
@@ -139,7 +139,7 @@ export function PlayerList({ players, pitchPlayers, lineAssignments, formation, 
                                                         key={`${line.id}-${idx}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            onAssign(player, line.id, slot.player?.id);
+                                                            onAssign(player, line.id, slot.player?.id, idx);
                                                             setOpenMenuId(null);
                                                         }}
                                                         className="w-full text-left px-3 py-2 hover:bg-[#374151] flex items-center justify-between group transition-colors border-b border-zinc-700/50 last:border-0"
