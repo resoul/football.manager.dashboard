@@ -2,6 +2,7 @@ import { type ReactNode, type CSSProperties, useEffect, useMemo, useState } from
 import { LayoutContext } from "./use-layout";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/tooltip';
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 interface LayoutProviderProps {
     sidebarCollapsed?: boolean;
@@ -12,7 +13,7 @@ interface LayoutProviderProps {
 
 export function LayoutProvider({ children, style: customStyle, bodyClassName = '', sidebarCollapsed = false}: LayoutProviderProps) {
     const isMobile = useIsMobile();
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(sidebarCollapsed);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('sidebar-collapsed', sidebarCollapsed);
     const [isMailViewExpanded, setIsMailViewExpanded] = useState(false);
 
     const defaultCssVariables = {
