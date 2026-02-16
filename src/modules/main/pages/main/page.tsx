@@ -1,5 +1,7 @@
+import { ContentView } from "../../layout/components/content";
+
 export function MainPage() {
     return (
-        <div className="flex grow gap-1 relative"></div>
+        <ContentView />
     );
 }

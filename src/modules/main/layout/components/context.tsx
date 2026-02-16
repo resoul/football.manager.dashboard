@@ -1,16 +1,29 @@
-import { type ReactNode, type CSSProperties, useEffect, useMemo } from 'react';
+import { type ReactNode, type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { LayoutContext } from "./use-layout";
+import { useIsMobile } from '@/hooks/use-mobile';
+import { TooltipProvider } from '@/components/tooltip';
 
 interface LayoutProviderProps {
+    sidebarCollapsed?: boolean;
     children: ReactNode;
     style?: CSSProperties;
     bodyClassName?: string;
 }
 
-export function LayoutProvider({ children, style: customStyle, bodyClassName = ''}: LayoutProviderProps) {
+export function LayoutProvider({ children, style: customStyle, bodyClassName = '', sidebarCollapsed = false}: LayoutProviderProps) {
+    const isMobile = useIsMobile();
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(sidebarCollapsed);
+    const [isMailViewExpanded, setIsMailViewExpanded] = useState(false);
+
     const defaultCssVariables = {
         '--sidebar-width': '240px',
+        '--sidebar-width-collapse': '60px',
+        '--sidebar-width-mobile': '240px',
+        '--header-height-mobile': '60px',
         '--aside-width': '80px',
+        '--aside-width-mobile': '60px',
+        '--page-space': '10px',
+        '--mail-list-width': '300px',
     };
 
     const cssVariables = useMemo(() => ({
@@ -19,7 +32,10 @@ export function LayoutProvider({ children, style: customStyle, bodyClassName = '
     }), [customStyle]);
 
     const style: CSSProperties = cssVariables;
-    // Apply CSS variables to HTML root and body className
+    const toggleSidebar = () => setIsSidebarCollapsed((open) => !open);
+    const toggleMailView = () => setIsMailViewExpanded((open) => !open);
+    const showMailView = () => setIsMailViewExpanded(true);
+    const hideMailView = () => setIsMailViewExpanded(false);
     useEffect(() => {
         const html = document.documentElement;
         const body = document.body;
@@ -38,25 +54,40 @@ export function LayoutProvider({ children, style: customStyle, bodyClassName = '
             body.className = `${originalBodyClasses} ${bodyClassName}`.trim();
         }
 
+        // Add data attributes to body for layout states
+        body.setAttribute('data-sidebar-collapsed', isSidebarCollapsed.toString());
+        body.setAttribute('data-mail-view-expanded', isMailViewExpanded.toString());
+
         // Cleanup function
         return () => {
             html.style.cssText = originalHtmlStyle;
             body.className = originalBodyClasses;
+            body.removeAttribute('data-sidebar-collapsed');
+            body.removeAttribute('data-mail-view-expanded');
         };
-    }, [cssVariables, bodyClassName]);
+    }, [cssVariables, bodyClassName, isSidebarCollapsed, isMailViewExpanded]);
 
     return (
         <LayoutContext.Provider
             value={{
                 bodyClassName,
                 style,
+                isMobile,
+                sidebarCollapsed: isSidebarCollapsed,
+                isMailViewExpanded,
+                showMailView,
+                hideMailView,
+                toggleSidebar,
+                toggleMailView,
             }}
         >
             <div
                 data-slot="layout-wrapper"
                 className="flex grow"
             >
-                {children}
+                <TooltipProvider delayDuration={0}>
+                    {children}
+                </TooltipProvider>
             </div>
         </LayoutContext.Provider>
     );

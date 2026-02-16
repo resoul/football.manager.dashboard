@@ -3,6 +3,13 @@ import { createContext, useContext, type CSSProperties } from 'react';
 interface LayoutState {
     style: CSSProperties;
     bodyClassName: string;
+    isMobile: boolean;
+    sidebarCollapsed: boolean;
+    isMailViewExpanded: boolean;
+    showMailView: () => void;
+    hideMailView: () => void;
+    toggleMailView: () => void;
+    toggleSidebar: () => void;
 }
 
 export const LayoutContext = createContext<LayoutState | undefined>(undefined);
