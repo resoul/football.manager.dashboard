@@ -6,7 +6,27 @@ import {
   AccordionMenuItem,
 } from '@/components/accordion-menu';
 import { cn } from "@/lib/utils";
-import { type LucideIcon, Settings, MessageSquare, Headset } from "lucide-react";
+import {
+    type LucideIcon,
+    LucideInbox,
+    Shirt,
+    Home,
+    ClipboardList,
+    LucideRefreshCw,
+    Target,
+    DatabaseBackup,
+    Users,
+    BriefcaseMedicalIcon,
+    CalendarIcon,
+    Search,
+    TrendingUpIcon,
+    Banknote,
+    Briefcase,
+    ShieldPlus,
+    Repeat,
+    Trophy,
+    Dumbbell
+} from "lucide-react";
 
 interface MenuConfig {
   title: string;
@@ -18,19 +38,94 @@ interface MenuConfig {
 
 const MENU_CONFIG: MenuConfig[] = [
   {
-    title: 'Support',
-    path: '#',
-    icon: Headset,
+    title: 'Home',
+    path: '/home',
+    icon: Home,
   },
   {
-    title: 'Settings',
-    path: '#',
-    icon: Settings,
+    title: 'Inbox',
+    path: '/inbox',
+    icon: LucideInbox,
   },
   {
-    title: 'Feedback',
-    path: '#',
-    icon: MessageSquare,
+    title: 'Squad',
+    path: '/squad',
+    icon: Shirt,
+  },
+  {
+    title: 'Squad Planner',
+    path: '/planner',
+    icon: ClipboardList,
+  },
+  {
+    title: 'Dynamics',
+    path: '/dynamics',
+    icon: LucideRefreshCw,
+  },
+  {
+    title: 'Tactics',
+    path: '/tactics',
+    icon: Target,
+  },
+  {
+    title: 'Data Hub',
+    path: '/data-hub',
+    icon: DatabaseBackup,
+  },
+  {
+    title: 'Staff',
+    path: '/staff',
+    icon: Users,
+  },
+  {
+    title: 'Training',
+    path: '/training',
+    icon: Dumbbell,
+  },
+  {
+    title: 'Medical Centre',
+    path: '/medical-centre',
+    icon: BriefcaseMedicalIcon,
+  },
+  {
+    title: 'Schedule',
+    path: '/schedule',
+    icon: CalendarIcon,
+  },
+  {
+    title: 'Competitions',
+    path: '/competitions',
+    icon: Trophy,
+  },
+  {
+    title: 'Scouting',
+    path: '/scouting',
+    icon: Search,
+  },
+  {
+    title: 'Transfers',
+    path: '/transfers',
+    icon: Repeat,
+  },
+  {
+    title: 'Club Info',
+    path: '/club-info',
+    icon: ShieldPlus,
+  },
+  {
+    title: 'Club Vision',
+    path: '/club-vision',
+    icon: Briefcase,
+  },
+  {
+    title: 'Finances',
+    path: '/finances',
+    icon: Banknote,
+  },
+  {
+    title: 'Dev. Centre',
+    path: '/dev-centre',
+    icon: TrendingUpIcon,
   },
 ];
 
