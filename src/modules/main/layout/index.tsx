@@ -14,7 +14,7 @@ export function Layout() {
                 sidebarCollapsed={false}
                 bodyClassName="bg-zinc-100 dark:bg-zinc-900 lg:overflow-hidden"
                 style={{
-                    '--sidebar-width': '200px',
+                    '--sidebar-width': '180px',
                     '--sidebar-width-collapse': '60px',
                     '--sidebar-width-mobile': '200px',
                     '--aside-width': '10px',

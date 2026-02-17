@@ -332,9 +332,9 @@ export const getSquadPlannerItems = (): MenuItem => {
             { title: 'Experience Matrix', path: '/planner/experience-matrix' },
             { title: 'Report', children: [
                     { title: 'Best XI', path: '/planner/best-xi' },
-                    { title: 'Assistant Report', path: '/squad/assistant-report' },
-                    { title: 'Stats', path: '/squad/stats' },
-                    { title: 'Comparison', path: '/squad/comparison' },
+                    { title: 'Assistant Report', path: '/planner/assistant-report' },
+                    { title: 'Stats', path: '/planner/stats' },
+                    { title: 'Comparison', path: '/planner/comparison' },
                 ] },
         ]
     }

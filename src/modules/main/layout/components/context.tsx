@@ -3,6 +3,7 @@ import { LayoutContext, type HeaderData } from "./use-layout";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/tooltip';
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { type MenuItem } from './types';
 
 interface LayoutProviderProps {
     sidebarCollapsed?: boolean;
@@ -16,6 +17,7 @@ export function LayoutProvider({ children, style: customStyle, bodyClassName = '
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('sidebar-collapsed', sidebarCollapsed);
     const [isMailViewExpanded, setIsMailViewExpanded] = useState(false);
     const [headerData, setHeaderData] = useState<HeaderData | undefined>();
+    const [menu, setMenu] = useState<MenuItem | undefined>();
 
     const defaultCssVariables = {
         '--sidebar-width': '240px',
@@ -37,29 +39,25 @@ export function LayoutProvider({ children, style: customStyle, bodyClassName = '
     const toggleMailView = () => setIsMailViewExpanded((open) => !open);
     const showMailView = () => setIsMailViewExpanded(true);
     const hideMailView = () => setIsMailViewExpanded(false);
+
     useEffect(() => {
         const html = document.documentElement;
         const body = document.body;
 
-        // Store original values for cleanup
         const originalHtmlStyle = html.style.cssText;
         const originalBodyClasses = body.className;
 
-        // Apply CSS variables to HTML root element
         Object.entries(cssVariables).forEach(([property, value]) => {
             html.style.setProperty(property, String(value));
         });
 
-        // Apply body className if provided
         if (bodyClassName) {
             body.className = `${originalBodyClasses} ${bodyClassName}`.trim();
         }
 
-        // Add data attributes to body for layout states
         body.setAttribute('data-sidebar-collapsed', isSidebarCollapsed.toString());
         body.setAttribute('data-mail-view-expanded', isMailViewExpanded.toString());
 
-        // Cleanup function
         return () => {
             html.style.cssText = originalHtmlStyle;
             body.className = originalBodyClasses;
@@ -77,11 +75,13 @@ export function LayoutProvider({ children, style: customStyle, bodyClassName = '
                 sidebarCollapsed: isSidebarCollapsed,
                 isMailViewExpanded,
                 headerData,
+                menu,
                 showMailView,
                 hideMailView,
                 toggleSidebar,
                 toggleMailView,
                 setHeaderData,
+                setMenu,
             }}
         >
             <div

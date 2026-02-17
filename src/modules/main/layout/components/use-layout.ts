@@ -4,7 +4,6 @@ import { type MenuItem } from './types';
 export interface HeaderData {
     title?: string;
     actions?: ReactNode;
-    menu?: MenuItem;
 }
 
 export interface LayoutState {
@@ -14,11 +13,13 @@ export interface LayoutState {
     sidebarCollapsed: boolean;
     isMailViewExpanded: boolean;
     headerData?: HeaderData;
+    menu?: MenuItem;
     showMailView: () => void;
     hideMailView: () => void;
     toggleMailView: () => void;
     toggleSidebar: () => void;
     setHeaderData: (data: HeaderData | undefined) => void;
+    setMenu: (menu: MenuItem | undefined) => void;
 }
 
 export const LayoutContext = createContext<LayoutState | undefined>(undefined);

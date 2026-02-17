@@ -24,8 +24,8 @@ const getEmptyItems = (): MenuItem => {
 export function NavbarMenu() {
     const { pathname } = useLocation();
     const { isActive, hasActiveChild } = useMenu(pathname);
-    const { headerData } = useLayout();
-    const menu = headerData?.menu ?? getEmptyItems();
+    const { menu } = useLayout();
+    const currentMenu = menu ?? getEmptyItems();
 
     const buildMenu = (items: MenuConfig) => {
         return items.map((item, index) => {
@@ -114,7 +114,7 @@ export function NavbarMenu() {
         <div className="grid">
             <div className="kt-scrollable-x-auto">
                 <Menubar className="flex items-stretch border-none bg-transparent p-0 h-auto">
-                    {buildMenu(menu.children as MenuConfig)}
+                    {buildMenu(currentMenu.children as MenuConfig)}
                 </Menubar>
             </div>
         </div>

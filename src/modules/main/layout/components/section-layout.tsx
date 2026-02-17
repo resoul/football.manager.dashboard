@@ -1,20 +1,20 @@
 import { useEffect, type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useLayout, type HeaderData } from './use-layout';
+import { useLayout } from './use-layout';
+import { type MenuItem } from './types';
 
-interface SectionLayoutProps extends HeaderData {
+interface SectionLayoutProps {
+    menu?: MenuItem;
     children?: ReactNode;
 }
 
-export function SectionLayout({ children, ...headerData }: SectionLayoutProps) {
-    const { setHeaderData } = useLayout();
+export function SectionLayout({ children, menu }: SectionLayoutProps) {
+    const { setMenu } = useLayout();
 
     useEffect(() => {
-        const hasData = Object.values(headerData).some(v => v !== undefined);
-        setHeaderData(hasData ? headerData : undefined);
-        return () => setHeaderData(undefined);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setHeaderData]);
+        setMenu(menu);
+        return () => setMenu(undefined);
+    }, [setMenu, menu]);
 
     return children ?? <Outlet />;
 }
