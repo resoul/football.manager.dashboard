@@ -22,10 +22,9 @@ export function LayoutProvider({ children, style: customStyle, bodyClassName = '
         '--sidebar-width-collapse': '60px',
         '--sidebar-width-mobile': '240px',
         '--header-height-mobile': '60px',
-        '--aside-width': '80px',
-        '--aside-width-mobile': '60px',
+        '--aside-width': '10px',
+        '--aside-width-mobile': '10px',
         '--page-space': '10px',
-        '--mail-list-width': '300px',
     };
 
     const cssVariables = useMemo(() => ({

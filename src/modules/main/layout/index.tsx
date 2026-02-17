@@ -17,8 +17,8 @@ export function Layout() {
                     '--sidebar-width': '200px',
                     '--sidebar-width-collapse': '60px',
                     '--sidebar-width-mobile': '200px',
-                    '--aside-width': '50px',
-                    '--aside-width-mobile': '50px',
+                    '--aside-width': '10px',
+                    '--aside-width-mobile': '10px',
                     '--page-space': '10px',
                     '--header-height-mobile': '60px',
                 } as CSSProperties}

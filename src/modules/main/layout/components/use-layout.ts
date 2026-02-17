@@ -1,9 +1,10 @@
 import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
+import { type MenuItem } from './types';
 
 export interface HeaderData {
     title?: string;
     actions?: ReactNode;
-    breadcrumbs?: Array<{ label: string; path?: string }>;
+    menu?: MenuItem;
 }
 
 export interface LayoutState {

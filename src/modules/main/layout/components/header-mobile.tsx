@@ -1,14 +1,12 @@
 import { Button } from '@/components/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetBody } from '@/components/sheet';
-import { Menu, PanelTopBottomDashed } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import { SidebarContent } from './sidebar-content';
 import { UserPanel } from './user-panel';
-import { AsideContent } from './aside-content';
 
 export function HeaderMobile() {
   const [isSidebarSheetOpen, setIsSidebarSheetOpen] = useState(false);
-  const [isAsideSheetOpen, setIsAsideSheetOpen] = useState(false);
 
   return (
     <header className="flex items-stretch fixed z-10 top-0 start-0 end-0 h-(--header-height-mobile) bg-zinc-100 dark:bg-zinc-900">
@@ -34,25 +32,6 @@ export function HeaderMobile() {
                 <SheetHeader className="p-0 space-y-0" />
                 <SheetBody className="flex flex-col grow p-0 pt-2.5">
                   <SidebarContent />
-                </SheetBody>
-              </SheetContent>
-            </Sheet>
-
-            {/* Aside */}
-            <Sheet open={isAsideSheetOpen} onOpenChange={setIsAsideSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" mode="icon" size="sm">
-                  <PanelTopBottomDashed />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                className="p-0 gap-0 w-(--aside-width-mobile)"
-                side="right"
-                close={false}
-              >
-                <SheetHeader className="p-0 space-y-0" />
-                <SheetBody className="flex flex-col grow p-0 py-2.5">
-                  <AsideContent />
                 </SheetBody>
               </SheetContent>
             </Sheet>

@@ -1,6 +1,5 @@
 import { Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Aside } from './aside';
 import { Sidebar } from './sidebar';
 import { HeaderMobile } from './header-mobile';
 import { useEffect, useState } from 'react';
@@ -23,8 +22,6 @@ export function Wrapper() {
             <div className="flex flex-col lg:flex-row grow py-(--page-space)">
                 <div className="flex grow rounded-xl">
                     {!isMobile && <Sidebar />}
-                    {!isMobile && <Aside />}
-
                     <div className={cn(
                         'grow pt-(--header-height-mobile) lg:pt-(--header-height) lg:overflow-hidden lg:ms-(--sidebar-width) lg:in-data-[sidebar-collapsed=true]:ms-(--sidebar-width-collapse) lg:me-[calc(var(--aside-width))]',
                         enableTransitions ? 'lg:transition-[margin] lg:duration-300' : 'lg:transition-none',
