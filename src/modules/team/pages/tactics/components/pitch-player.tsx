@@ -30,8 +30,8 @@ function PlayerShirt({ number, isGK }: { number: number; isGK: boolean }) {
     const numberColor = '#f39c12';
 
     return (
-        <svg width="52" height="52" viewBox="0 0 40 40">
-            {/* Shirt body */}
+        /* Увеличен с 52×52 до 104×104 (в два раза) */
+        <svg width="77" height="77" viewBox="0 0 40 40">
             <path
                 d="M8 12 L4 18 L10 20 L10 34 L30 34 L30 20 L36 18 L32 12 L26 10 Q20 14 14 10 Z"
                 fill={shirtColor}
@@ -93,40 +93,38 @@ export function PitchPlayer({ player, position, onDragStart }: PitchPlayerProps)
             {/* Shirt - bigger */}
             <div
                 className="transition-transform group-hover:scale-110"
-                style={{
-                    filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))',
-                }}
+                style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))' }}
             >
                 <PlayerShirt number={player.number} isGK={isGK} />
             </div>
 
-            {/* Name badge - wider */}
+            {/* Name badge */}
             <div
                 style={{
                     background: 'rgba(15,15,25,0.92)',
                     border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: 5,
+                    borderRadius: 6,
                     padding: '3px 7px',
-                    marginTop: 2,
-                    minWidth: 72,
-                    maxWidth: 96,
+                    marginTop: 0,
+                    minWidth: 82,
+                    maxWidth: 111,
                     textAlign: 'center',
                     backdropFilter: 'blur(4px)',
                 }}
             >
-                {/* Role – Duty row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 2 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#d4d4d4', letterSpacing: '0.03em', fontFamily: 'monospace' }}>
+                {/* Role – Duty */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 3 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#d4d4d4', letterSpacing: '0.03em', fontFamily: 'monospace' }}>
                         {player.role}
                     </span>
-                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>–</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: dutyColor, fontFamily: 'monospace' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>–</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: dutyColor, fontFamily: 'monospace' }}>
                         {dutyAbbr}
                     </span>
                 </div>
                 {/* Name */}
                 <div style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     color: '#f0f0f0',
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
