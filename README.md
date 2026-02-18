@@ -10,7 +10,7 @@ A modern, feature-rich **Football Manager**-style web application built with Rea
 ![Tactics Pitch](screenshots/screenshot-2.png)
 
 ### News Feed
-![News](screenshots/screenshot-2.png)
+![News](screenshots/screenshot-1.png)
 
 ---
 
