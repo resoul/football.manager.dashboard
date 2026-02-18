@@ -11,7 +11,6 @@ interface PositionSlotProps {
     onDragStart: (e: React.DragEvent<HTMLDivElement>, player: Player) => void;
 }
 
-// ── Duty colours / abbreviations ─────────────────────────────────────────────
 const DUTY_COLOR: Record<string, string> = {
     Attack: '#9b6eec', attack: '#9b6eec',
     Support: '#2ecc71', support: '#2ecc71',
@@ -23,40 +22,30 @@ const DUTY_ABBR: Record<string, string> = {
     Defend: 'De', defend: 'De',
 };
 
-// ── Role background colours (matching FM dark palette) ───────────────────────
 function roleBg(label: string, isGK: boolean): string {
     if (isGK) return '#3d2b10';
     if (['WB','DL','DR','DC','CD','BPD'].includes(label)) return '#1a2a44';
     if (['DM','BWM','CM','MC'].includes(label)) return '#1e2236';
-    return '#1e1e36'; // AM / attackers
+    return '#1e1e36';
 }
 
-// ── Compatibility check ───────────────────────────────────────────────────────
 type Compat = 'natural' | 'accomplished' | 'incompatible';
 
 function getCompat(player: Player, slot: GridPosition): Compat {
     const pos = player.position;
-
     const matches = (codes: string[]) =>
         codes.some(c => pos === c || pos.startsWith(c) || c.startsWith(pos));
-
     if (matches(slot.naturalFor)) return 'natural';
     if (matches(slot.accomplishedFor)) return 'accomplished';
     return 'incompatible';
 }
 
 const COMPAT_RING: Record<Compat, string> = {
-    natural:      'rgba(74, 222, 128, 0.9)',
-    accomplished: 'rgba(251, 146, 60, 0.9)',
-    incompatible: 'rgba(248, 113, 113, 0.7)',
-};
-const COMPAT_LABEL: Record<Compat, string> = {
-    natural:      'Natural',
-    accomplished: 'Accom.',
-    incompatible: '✕',
+    natural:      '74, 222, 128',
+    accomplished: '251, 146, 60',
+    incompatible: '248, 113, 113',
 };
 
-// ── Ghost shirt SVG ───────────────────────────────────────────────────────────
 function GhostShirt({ isGK }: { isGK: boolean }) {
     return (
         <svg width="56" height="56" viewBox="0 0 40 40">
@@ -73,65 +62,46 @@ function GhostShirt({ isGK }: { isGK: boolean }) {
     );
 }
 
-// ── Real player shirt SVG ─────────────────────────────────────────────────────
 function PlayerShirt({ number, isGK }: { number: number; isGK: boolean }) {
-    // GK gets a teal/chequered feel, outfield get dark shirt
     const fill = isGK ? '#1a7a6e' : '#1c1c2e';
     const collar = isGK ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.25)';
     const numColor = isGK ? '#ffffff' : '#f5a623';
-
     return (
-        <svg
-            width="68" height="68" viewBox="0 0 40 40"
-            style={{ filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.75))' }}
-        >
+        <svg width="68" height="68" viewBox="0 0 40 40"
+             style={{ filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.75))' }}>
             <path
                 d="M8 12 L4 18 L10 20 L10 34 L30 34 L30 20 L36 18 L32 12 L26 10 Q20 14 14 10 Z"
-                fill={fill}
-                stroke="rgba(255,255,255,0.18)"
-                strokeWidth="0.6"
+                fill={fill} stroke="rgba(255,255,255,0.18)" strokeWidth="0.6"
             />
             {isGK && (
-                // chequered pattern hint
-                <path
-                    d="M10 20 L10 34 L20 34 L20 20 Z M20 27 L30 27 L30 34 L20 34 Z"
-                    fill="rgba(255,255,255,0.06)"
-                />
+                <path d="M10 20 L10 34 L20 34 L20 20 Z M20 27 L30 27 L30 34 L20 34 Z"
+                      fill="rgba(255,255,255,0.06)" />
             )}
             <path d="M14 10 Q20 16 26 10" fill="none" stroke={collar} strokeWidth="1" />
             <path d="M8 12 L4 18 L10 20 L10 16" fill="rgba(255,255,255,0.07)" />
             <path d="M32 12 L36 18 L30 20 L30 16" fill="rgba(255,255,255,0.07)" />
-            <text
-                x="20" y="26"
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize="11" fontWeight="bold"
-                fill={numColor}
-                fontFamily="Georgia, serif"
-            >
+            <text x="20" y="26" textAnchor="middle" dominantBaseline="middle"
+                  fontSize="11" fontWeight="bold" fill={numColor} fontFamily="Georgia, serif">
                 {number}
             </text>
         </svg>
     );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export function PositionSlot({
-                                 slot, player, draggingPlayer, onDrop, onDragStart,
-                             }: PositionSlotProps) {
+export function PositionSlot({ slot, player, draggingPlayer, onDrop, onDragStart }: PositionSlotProps) {
     const [isDragOver, setIsDragOver] = useState(false);
 
     const compat: Compat | null = draggingPlayer ? getCompat(draggingPlayer, slot) : null;
+    const rgb = compat ? COMPAT_RING[compat] : null;
+
+    // Always render box-shadow — transparent when no drag, coloured when dragging.
+    // This prevents layout shift / jerk when shadow appears.
+    const cardShadow = rgb
+        ? `0 0 0 2px rgba(${rgb}, 0.9), 0 0 14px rgba(${rgb}, 0.25)`
+        : '0 0 0 2px rgba(255,255,255,0)';  // transparent placeholder — no jerk
+
     const isGKSlot = slot.label === 'GK';
     const isGKPlayer = player?.position === 'GK';
-
-    // Card outer ring / glow during drag
-    const ringColor = compat ? COMPAT_RING[compat] : 'transparent';
-    const ringStyle: React.CSSProperties = compat
-        ? {
-            boxShadow: `0 0 0 2px ${ringColor}, 0 0 14px ${ringColor.replace('0.9', '0.3').replace('0.7', '0.2')}`,
-            borderRadius: 7,
-        }
-        : {};
 
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -146,12 +116,11 @@ export function PositionSlot({
         onDrop(e, slot.id);
     };
 
-    // Resolved values (use player's role/duty if assigned, else slot defaults)
-    const duty     = player ? player.duty     : slot.defaultDuty;
-    const role     = player ? player.role     : slot.defaultRole;
-    const dutyClr  = DUTY_COLOR[duty]  ?? '#888';
-    const dutyAbbr = DUTY_ABBR[duty]   ?? 'Su';
-    const bg       = roleBg(slot.label, isGKSlot);
+    const duty    = player ? player.duty : slot.defaultDuty;
+    const role    = player ? player.role : slot.defaultRole;
+    const dutyClr = DUTY_COLOR[duty] ?? '#888';
+    const dutyAbbr = DUTY_ABBR[duty] ?? 'Su';
+    const bg = roleBg(slot.label, isGKSlot);
 
     const shortName = player
         ? (player.name.length > 12 ? player.name.split(' ').pop()! : player.name)
@@ -168,7 +137,6 @@ export function PositionSlot({
                 flexDirection: 'column',
                 alignItems: 'center',
                 zIndex: isDragOver ? 20 : 10,
-                // slight opacity when dragging this specific player
                 opacity: draggingPlayer && player?.id === draggingPlayer.id ? 0.4 : 1,
                 transition: 'opacity 0.15s',
             }}
@@ -176,7 +144,7 @@ export function PositionSlot({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
-            {/* ── Shirt ── */}
+            {/* Shirt */}
             {player ? (
                 <div
                     draggable
@@ -192,7 +160,7 @@ export function PositionSlot({
                 </div>
             )}
 
-            {/* ── FM card ── */}
+            {/* FM card — always has box-shadow placeholder to prevent jerk */}
             <div
                 style={{
                     marginTop: -2,
@@ -200,10 +168,9 @@ export function PositionSlot({
                     maxWidth: 128,
                     borderRadius: 6,
                     overflow: 'hidden',
-                    ...ringStyle,
-                    transition: 'box-shadow 0.12s',
+                    boxShadow: cardShadow,
+                    transition: 'box-shadow 0.12s ease',
                     cursor: player ? 'grab' : 'default',
-                    // dim slot card (not the shirt) while player drags away
                     pointerEvents: player && draggingPlayer?.id === player.id ? 'none' : 'auto',
                 }}
                 draggable={!!player}
@@ -220,23 +187,18 @@ export function PositionSlot({
                     gap: 4,
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{
-                            fontSize: 12, fontWeight: 700, color: '#c8c8d8',
-                            fontFamily: 'monospace', letterSpacing: '0.02em',
-                        }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#c8c8d8', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
                             {role}
                         </span>
                         <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11 }}>-</span>
-                        <span style={{
-                            fontSize: 12, fontWeight: 700, color: dutyClr, fontFamily: 'monospace',
-                        }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: dutyClr, fontFamily: 'monospace' }}>
                             {dutyAbbr}
                         </span>
                     </div>
                     <ChevronDown size={11} color="rgba(255,255,255,0.35)" />
                 </div>
 
-                {/* Pick Player / name row */}
+                {/* Player name row */}
                 <div style={{
                     background: 'rgba(10,12,22,0.94)',
                     padding: '4px 8px',
@@ -248,7 +210,6 @@ export function PositionSlot({
                     {player ? (
                         <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
-                                {/* Small person icon */}
                                 <svg width="10" height="10" viewBox="0 0 10 10" style={{ flexShrink: 0, opacity: 0.5 }}>
                                     <circle cx="5" cy="3" r="2" fill="rgba(255,255,255,0.7)" />
                                     <path d="M1 10 Q1 7 5 7 Q9 7 9 10" fill="rgba(255,255,255,0.7)" />
@@ -265,10 +226,7 @@ export function PositionSlot({
                         </>
                     ) : (
                         <>
-                            <span style={{
-                                fontSize: 11, color: 'rgba(200,200,220,0.45)',
-                                fontFamily: 'system-ui, sans-serif', fontStyle: 'italic',
-                            }}>
+                            <span style={{ fontSize: 11, color: 'rgba(200,200,220,0.45)', fontFamily: 'system-ui, sans-serif', fontStyle: 'italic' }}>
                                 Pick Player
                             </span>
                             <ChevronDown size={11} color="rgba(255,255,255,0.2)" />
@@ -276,22 +234,7 @@ export function PositionSlot({
                     )}
                 </div>
             </div>
-
-            {/* ── Compat label (shown only during drag) ── */}
-            {compat && (
-                <div style={{
-                    marginTop: 4,
-                    fontSize: 9,
-                    fontWeight: 800,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: COMPAT_RING[compat],
-                    textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-                    pointerEvents: 'none',
-                }}>
-                    {COMPAT_LABEL[compat]}
-                </div>
-            )}
+            {/* NO text label — only the ring highlight */}
         </div>
     );
 }
