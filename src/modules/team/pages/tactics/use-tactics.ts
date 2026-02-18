@@ -1,53 +1,197 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Player } from './data';
 import { FORMATIONS, DEFAULT_FORMATION } from './formations';
+import { GHOST_SLOTS, SNAP_RADIUS } from './ghost-grid';
+
+
+// Find the ghost slot nearest to a given (x, y) — used to place players on the ghost grid
+function nearestGhost(x: number, y: number) {
+    let best = GHOST_SLOTS[0];
+    let bestDist = Infinity;
+    for (const g of GHOST_SLOTS) {
+        const d = Math.sqrt((g.x - x) ** 2 + (g.y - y) ** 2);
+        if (d < bestDist) { bestDist = d; best = g; }
+    }
+    return best;
+}
+
+export interface PlayerOnPitch {
+    player: Player;
+    slotId: string;
+    x: number; // % from left
+    y: number; // % from top
+    animating: boolean;
+}
 
 export function useTactics(initialPlayers: Player[]) {
     const [formationKey, setFormationKey] = useState<string>(DEFAULT_FORMATION);
-    // slotId -> Player
-    const [assignments, setAssignments] = useState<Record<string, Player>>({});
+    const [onPitch, setOnPitch] = useState<PlayerOnPitch[]>([]);
 
     const formation = useMemo(() => FORMATIONS[formationKey], [formationKey]);
 
-    // ── Move / swap ─────────────────────────────────────────────────────────
+    // Legacy: assignments as Record<slotId, Player> for PlayerList compatibility
+    const assignments = useMemo(() => {
+        const rec: Record<string, Player> = {};
+        onPitch.forEach(p => { rec[p.slotId] = p.player; });
+        return rec;
+    }, [onPitch]);
+
+    // ── Move / snap player to slot ──────────────────────────────────────────
+    // movePlayer: toSlotId is a GHOST slot id (ghost-gk, ghost-d1, etc.)
+    // or a formation slot id — in the latter case we map to nearest ghost slot.
     const movePlayer = useCallback((player: Player, toSlotId: string) => {
-        setAssignments(prev => {
-            const next = { ...prev };
+        // Resolve ghost slot — prefer direct ghost id, else find nearest ghost to formation slot
+        let ghostSlot = GHOST_SLOTS.find(g => g.id === toSlotId);
+        if (!ghostSlot) {
+            const formSlot = formation.positions.find(s => s.id === toSlotId);
+            if (formSlot) ghostSlot = nearestGhost(formSlot.x, formSlot.y);
+        }
+        if (!ghostSlot) return;
 
-            // Find current slot of this player (if on pitch)
-            const fromSlot = Object.entries(next).find(([, p]) => p.id === player.id)?.[0] ?? null;
+        // Get role/duty from nearest formation slot to ghost position
+        const formSlot = formation.positions.reduce((best, s) => {
+            const db = Math.sqrt((best.x - ghostSlot!.x) ** 2 + (best.y - ghostSlot!.y) ** 2);
+            const ds = Math.sqrt((s.x - ghostSlot!.x) ** 2 + (s.y - ghostSlot!.y) ** 2);
+            return ds < db ? s : best;
+        });
 
-            // Remove player from current slot
-            if (fromSlot) delete next[fromSlot];
+        const targetGhostId = ghostSlot.id;
 
-            // If target has occupant AND player came from pitch → swap occupant to fromSlot
-            const occupant = next[toSlotId];
-            if (occupant && fromSlot) {
-                const fromSlotDef = formation.positions.find(s => s.id === fromSlot);
-                // Adapt occupant to the slot it's moving into (fromSlot)
-                next[fromSlot] = fromSlotDef
-                    ? { ...occupant, role: fromSlotDef.defaultRole, duty: fromSlotDef.defaultDuty }
-                    : occupant;
+        setOnPitch(prev => {
+            const next = [...prev];
+            const fromIdx = next.findIndex(p => p.player.id === player.id);
+            const occupantIdx = next.findIndex(p => p.slotId === targetGhostId);
+            const isFromList = fromIdx === -1;
+
+            // Enforce 11-player limit: block if pitch is full and player is new (from list)
+            // and target slot is empty (no swap possible)
+            if (isFromList && occupantIdx === -1 && next.length >= 11) {
+                return prev;
             }
 
-            // Adapt player to target slot role/duty
-            const toSlotDef = formation.positions.find(s => s.id === toSlotId);
-            next[toSlotId] = toSlotDef
-                ? { ...player, role: toSlotDef.defaultRole, duty: toSlotDef.defaultDuty }
-                : player;
+            if (!isFromList && occupantIdx !== -1 && occupantIdx !== fromIdx) {
+                // Pitch→pitch swap: send occupant back to dragged player's old ghost slot
+                const prevGhost = GHOST_SLOTS.find(g => g.id === next[fromIdx].slotId) ?? ghostSlot!;
+                next[occupantIdx] = {
+                    ...next[occupantIdx],
+                    slotId: prevGhost.id,
+                    x: prevGhost.x,
+                    y: prevGhost.y,
+                    animating: true,
+                };
+            } else if (isFromList && occupantIdx !== -1) {
+                // List→pitch swap: replace occupant with new player (remove occupant)
+                next.splice(occupantIdx, 1);
+            }
 
+            const newEntry: PlayerOnPitch = {
+                player: { ...player, role: formSlot.defaultRole, duty: formSlot.defaultDuty },
+                slotId: targetGhostId,
+                x: ghostSlot!.x,
+                y: ghostSlot!.y,
+                animating: true,
+            };
+
+            if (!isFromList) {
+                next[fromIdx] = newEntry;
+            } else {
+                next.push(newEntry);
+            }
             return next;
         });
     }, [formation]);
 
-    // ── Remove from pitch ───────────────────────────────────────────────────
-    const removePlayer = useCallback((playerId: string) => {
-        setAssignments(prev => {
-            const next = { ...prev };
-            const slot = Object.entries(next).find(([, p]) => p.id === playerId)?.[0];
-            if (slot) delete next[slot];
+    // ── Update free position (during/after drag) ────────────────────────────
+    const updatePosition = useCallback((playerId: string, x: number, y: number) => {
+        setOnPitch(prev =>
+            prev.map(p => p.player.id === playerId ? { ...p, x, y, animating: false } : p)
+        );
+    }, []);
+
+    // ── Snap or return after drag ends ──────────────────────────────────────
+    // Snaps to nearest GHOST_SLOT (the static 17-slot grid visible on pitch).
+    // Role/duty are kept from the player's current values (formation changes handle those).
+    const snapOrReturn = useCallback((
+        playerId: string,
+        dropX: number,
+        dropY: number,
+        radius: number = SNAP_RADIUS,
+    ) => {
+        setOnPitch(prev => {
+            const idx = prev.findIndex(p => p.player.id === playerId);
+            if (idx === -1) return prev;
+
+            const next = [...prev];
+            const current = next[idx];
+
+            // Find nearest GHOST slot
+            let nearest = GHOST_SLOTS[0];
+            let nearestDist = Infinity;
+            for (const slot of GHOST_SLOTS) {
+                const dx = slot.x - dropX;
+                const dy = slot.y - dropY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = slot;
+                }
+            }
+
+            if (nearestDist <= radius) {
+                // Handle occupant swap — find player already on this ghost slot
+                const occupantIdx = next.findIndex(
+                    p => p.slotId === nearest.id && p.player.id !== playerId
+                );
+                if (occupantIdx !== -1) {
+                    // Swap occupant back to current player's slot
+                    next[occupantIdx] = {
+                        ...next[occupantIdx],
+                        slotId: current.slotId,
+                        x: current.x, // will snap to their ghost slot coords
+                        y: current.y,
+                        animating: true,
+                    };
+                    // Restore occupant to exact ghost slot coords
+                    const prevGhost = GHOST_SLOTS.find(g => g.id === current.slotId);
+                    if (prevGhost) {
+                        next[occupantIdx] = {
+                            ...next[occupantIdx],
+                            x: prevGhost.x,
+                            y: prevGhost.y,
+                        };
+                    }
+                }
+
+                // Snap dragged player to ghost slot
+                next[idx] = {
+                    ...current,
+                    slotId: nearest.id,
+                    x: nearest.x,
+                    y: nearest.y,
+                    animating: true,
+                };
+            } else {
+                // Return to original ghost slot position
+                const originalGhost = GHOST_SLOTS.find(g => g.id === current.slotId);
+                const returnX = originalGhost?.x ?? current.x;
+                const returnY = originalGhost?.y ?? current.y;
+                next[idx] = { ...current, x: returnX, y: returnY, animating: true };
+            }
+
             return next;
         });
+    }, []);
+
+    // ── Remove from pitch ───────────────────────────────────────────────────
+    const removePlayer = useCallback((playerId: string) => {
+        setOnPitch(prev => prev.filter(p => p.player.id !== playerId));
+    }, []);
+
+    // ── Clear animation flag after transition ───────────────────────────────
+    const clearAnimating = useCallback((playerId: string) => {
+        setOnPitch(prev =>
+            prev.map(p => p.player.id === playerId ? { ...p, animating: false } : p)
+        );
     }, []);
 
     // ── Auto pick ───────────────────────────────────────────────────────────
@@ -70,14 +214,27 @@ export function useTactics(initialPlayers: Player[]) {
             return pool.shift();
         };
 
-        const next: Record<string, Player> = {};
+        const next: PlayerOnPitch[] = [];
+        const usedGhostIds = new Set<string>();
 
-        // GK first
+        const pickGhost = (fx: number, fy: number): typeof GHOST_SLOTS[0] => {
+            let best = GHOST_SLOTS[0];
+            let bestDist = Infinity;
+            for (const g of GHOST_SLOTS) {
+                if (usedGhostIds.has(g.id)) continue;
+                const d = Math.sqrt((g.x - fx) ** 2 + (g.y - fy) ** 2);
+                if (d < bestDist) { bestDist = d; best = g; }
+            }
+            usedGhostIds.add(best.id);
+            return best;
+        };
+
         const gkSlot = formation.positions.find(s => s.label === 'GK');
         if (gkSlot) {
             const gk = pool.find(p => p.position === 'GK');
             if (gk) {
-                next[gkSlot.id] = { ...gk, role: gkSlot.defaultRole, duty: gkSlot.defaultDuty };
+                const ghost = pickGhost(gkSlot.x, gkSlot.y);
+                next.push({ player: { ...gk, role: gkSlot.defaultRole, duty: gkSlot.defaultDuty }, slotId: ghost.id, x: ghost.x, y: ghost.y, animating: false });
                 pool.splice(pool.indexOf(gk), 1);
             }
         }
@@ -85,66 +242,95 @@ export function useTactics(initialPlayers: Player[]) {
         formation.positions.forEach(slot => {
             if (slot.label === 'GK') return;
             const p = popBest(slot.naturalFor, slot.accomplishedFor);
-            if (p) next[slot.id] = { ...p, role: slot.defaultRole, duty: slot.defaultDuty };
+            if (p) {
+                const ghost = pickGhost(slot.x, slot.y);
+                next.push({ player: { ...p, role: slot.defaultRole, duty: slot.defaultDuty }, slotId: ghost.id, x: ghost.x, y: ghost.y, animating: false });
+            }
         });
 
-        setAssignments(next);
+        setOnPitch(next);
     }, [formation, initialPlayers]);
 
     // ── Clear ───────────────────────────────────────────────────────────────
-    const clearPitch = useCallback(() => setAssignments({}), []);
+    const clearPitch = useCallback(() => setOnPitch([]), []);
 
-    // ── Formation change ────────────────────────────────────────────────────
+    // ── Formation change — animate players to new positions ─────────────────
     const handleFormationChange = useCallback((newKey: string) => {
         const newFormation = FORMATIONS[newKey];
 
-        const onPitch = Object.values(assignments);
-        const rest = initialPlayers.filter(p => !onPitch.find(op => op.id === p.id));
-        const pool = [...onPitch, ...rest];
+        setOnPitch(prev => {
+            const pool: PlayerOnPitch[] = [...prev];
+            const next: PlayerOnPitch[] = [];
 
-        const popBest = (naturalFor: string[], accomplishedFor: string[]): Player | undefined => {
-            for (const code of naturalFor) {
-                const idx = pool.findIndex(p =>
-                    p.position === code || p.position.startsWith(code) || code.startsWith(p.position),
-                );
-                if (idx !== -1) return pool.splice(idx, 1)[0];
-            }
-            for (const code of accomplishedFor) {
-                const idx = pool.findIndex(p =>
-                    p.position === code || p.position.startsWith(code) || code.startsWith(p.position),
-                );
-                if (idx !== -1) return pool.splice(idx, 1)[0];
-            }
-            return pool.shift();
-        };
+            const popBest = (naturalFor: string[], accomplishedFor: string[]): PlayerOnPitch | undefined => {
+                for (const code of naturalFor) {
+                    const idx = pool.findIndex(p =>
+                        p.player.position === code ||
+                        p.player.position.startsWith(code) ||
+                        code.startsWith(p.player.position),
+                    );
+                    if (idx !== -1) return pool.splice(idx, 1)[0];
+                }
+                for (const code of accomplishedFor) {
+                    const idx = pool.findIndex(p =>
+                        p.player.position === code ||
+                        p.player.position.startsWith(code) ||
+                        code.startsWith(p.player.position),
+                    );
+                    if (idx !== -1) return pool.splice(idx, 1)[0];
+                }
+                return pool.shift();
+            };
 
-        const next: Record<string, Player> = {};
+            const usedGhostIds2 = new Set<string>();
+            const pickGhost2 = (fx: number, fy: number): typeof GHOST_SLOTS[0] => {
+                let best = GHOST_SLOTS[0];
+                let bestDist = Infinity;
+                for (const g of GHOST_SLOTS) {
+                    if (usedGhostIds2.has(g.id)) continue;
+                    const d = Math.sqrt((g.x - fx) ** 2 + (g.y - fy) ** 2);
+                    if (d < bestDist) { bestDist = d; best = g; }
+                }
+                usedGhostIds2.add(best.id);
+                return best;
+            };
 
-        const gkSlot = newFormation.positions.find(s => s.label === 'GK');
-        if (gkSlot) {
-            const gk = pool.find(p => p.position === 'GK');
-            if (gk) {
-                next[gkSlot.id] = { ...gk, role: gkSlot.defaultRole, duty: gkSlot.defaultDuty };
-                pool.splice(pool.indexOf(gk), 1);
+            const gkSlot = newFormation.positions.find(s => s.label === 'GK');
+            if (gkSlot) {
+                const gkIdx = pool.findIndex(p => p.player.position === 'GK');
+                if (gkIdx !== -1) {
+                    const gk = pool.splice(gkIdx, 1)[0];
+                    const ghost = pickGhost2(gkSlot.x, gkSlot.y);
+                    next.push({ ...gk, slotId: ghost.id, x: ghost.x, y: ghost.y, animating: true, player: { ...gk.player, role: gkSlot.defaultRole, duty: gkSlot.defaultDuty } });
+                }
             }
-        }
-        newFormation.positions.forEach(slot => {
-            if (slot.label === 'GK') return;
-            const p = popBest(slot.naturalFor, slot.accomplishedFor);
-            if (p) next[slot.id] = { ...p, role: slot.defaultRole, duty: slot.defaultDuty };
+
+            newFormation.positions.forEach(slot => {
+                if (slot.label === 'GK') return;
+                const p = popBest(slot.naturalFor, slot.accomplishedFor);
+                if (p) {
+                    const ghost = pickGhost2(slot.x, slot.y);
+                    next.push({ ...p, slotId: ghost.id, x: ghost.x, y: ghost.y, animating: true, player: { ...p.player, role: slot.defaultRole, duty: slot.defaultDuty } });
+                }
+            });
+
+            return next;
         });
 
         setFormationKey(newKey);
-        setAssignments(next);
-    }, [assignments, initialPlayers]);
+    }, []);
 
     return {
         formation,
         formationKey,
         assignments,
+        onPitch,
         handleFormationChange,
         movePlayer,
+        updatePosition,
+        snapOrReturn,
         removePlayer,
+        clearAnimating,
         autoPick,
         clearPitch,
     };
