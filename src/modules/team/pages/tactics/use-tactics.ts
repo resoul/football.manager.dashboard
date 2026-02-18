@@ -48,6 +48,7 @@ export function useTactics(initialPlayers: Player[]) {
         }
         if (!ghostSlot) return;
 
+
         // Get role/duty from nearest formation slot to ghost position
         const formSlot = formation.positions.reduce((best, s) => {
             const db = Math.sqrt((best.x - ghostSlot!.x) ** 2 + (best.y - ghostSlot!.y) ** 2);
@@ -125,6 +126,9 @@ export function useTactics(initialPlayers: Player[]) {
             const current = next[idx];
 
             // Find nearest GHOST slot
+            // Restriction: player on the GK slot (g-gk) cannot be dragged to empty non-GK slots
+            const isOnGKSlot = current.slotId === 'g-gk';
+
             let nearest = GHOST_SLOTS[0];
             let nearestDist = Infinity;
             for (const slot of GHOST_SLOTS) {
@@ -138,20 +142,26 @@ export function useTactics(initialPlayers: Player[]) {
             }
 
             if (nearestDist <= radius) {
-                // Handle occupant swap — find player already on this ghost slot
                 const occupantIdx = next.findIndex(
                     p => p.slotId === nearest.id && p.player.id !== playerId
                 );
+
+                // Player on GK slot dragged to empty non-GK slot → return
+                if (isOnGKSlot && nearest.id !== 'g-gk' && occupantIdx === -1) {
+                    const originalGhost = GHOST_SLOTS.find(g => g.id === current.slotId);
+                    next[idx] = { ...current, x: originalGhost?.x ?? current.x, y: originalGhost?.y ?? current.y, animating: true };
+                    return next;
+                }
+
                 if (occupantIdx !== -1) {
                     // Swap occupant back to current player's slot
                     next[occupantIdx] = {
                         ...next[occupantIdx],
                         slotId: current.slotId,
-                        x: current.x, // will snap to their ghost slot coords
+                        x: current.x,
                         y: current.y,
                         animating: true,
                     };
-                    // Restore occupant to exact ghost slot coords
                     const prevGhost = GHOST_SLOTS.find(g => g.id === current.slotId);
                     if (prevGhost) {
                         next[occupantIdx] = {

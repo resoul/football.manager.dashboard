@@ -122,7 +122,7 @@ export function Pitch({ onPitch, draggingPlayer, onDragStart, onDragEnd, onClear
             <PitchMarkings />
 
             {/* Layer 1: Ghost grid */}
-            <GhostGrid visible={!!draggingPlayer} />
+            <GhostGrid visible={!!draggingPlayer} draggingPlayer={draggingPlayer} />
 
             {/* Layer 2: Active players */}
             <div className="absolute inset-0" style={{ zIndex: 10 }}>
