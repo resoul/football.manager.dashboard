@@ -22,39 +22,39 @@ const F4231: Formation = {
     positions: [
         // Goalkeeper
         {
-            id: 'GK', label: 'GK', x: 50, y: 87,
+            id: 'GK', label: 'GK', x: 50, y: 93,
             defaultRole: 'SK', defaultDuty: 'Support',
             naturalFor: ['GK'], accomplishedFor: [],
         },
         // Back four
         {
-            id: 'WB-L', label: 'WB', x: 9, y: 71,
+            id: 'WB-L', label: 'WB', x: 9, y: 75,
             defaultRole: 'WB', defaultDuty: 'Support',
             naturalFor: ['DL', 'WBL'], accomplishedFor: ['DR', 'WBR', 'ML'],
         },
         {
-            id: 'CD-L', label: 'CD', x: 31, y: 71,
+            id: 'CD-L', label: 'CD', x: 39, y: 78,
             defaultRole: 'CD', defaultDuty: 'Defend',
             naturalFor: ['DC', 'DCL', 'DCR'], accomplishedFor: ['DL', 'DR', 'MC'],
         },
         {
-            id: 'BPD-R', label: 'BPD', x: 69, y: 71,
+            id: 'BPD-R', label: 'BPD', x: 61, y: 78,
             defaultRole: 'BPD', defaultDuty: 'Defend',
             naturalFor: ['DC', 'DCL', 'DCR'], accomplishedFor: ['DL', 'DR', 'MC'],
         },
         {
-            id: 'WB-R', label: 'WB', x: 91, y: 71,
+            id: 'WB-R', label: 'WB', x: 91, y: 75,
             defaultRole: 'WB', defaultDuty: 'Support',
             naturalFor: ['DR', 'WBR'], accomplishedFor: ['DL', 'WBL', 'MR'],
         },
         // DM double pivot
         {
-            id: 'DM-L', label: 'DM', x: 35, y: 53,
+            id: 'DM-L', label: 'DM', x: 35, y: 59,
             defaultRole: 'DM', defaultDuty: 'Support',
             naturalFor: ['DM', 'MCL', 'MC'], accomplishedFor: ['DC', 'AMC'],
         },
         {
-            id: 'BWM-R', label: 'BWM', x: 65, y: 53,
+            id: 'BWM-R', label: 'BWM', x: 65, y: 59,
             defaultRole: 'BWM', defaultDuty: 'Defend',
             naturalFor: ['MCR', 'MC', 'DM'], accomplishedFor: ['DC', 'AMC'],
         },

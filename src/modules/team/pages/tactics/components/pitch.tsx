@@ -1,6 +1,7 @@
 import type { Player } from '../data';
 import type { GridPosition } from '../formations';
 import { PositionSlot } from './position-slot';
+import type { DisplayMode } from './position-slot';
 import { setPlayerDragImage } from './drag-image';
 
 interface PitchProps {
@@ -8,6 +9,7 @@ interface PitchProps {
     positions: GridPosition[];
     draggingPlayer: Player | null;
     onDragStart: (e: React.DragEvent<HTMLDivElement>, player: Player) => void;
+    displayMode: DisplayMode;
     onDrop: (e: React.DragEvent<HTMLDivElement>, slotId: string) => void;
 }
 
@@ -69,7 +71,7 @@ function GrassStripes() {
 }
 
 // ── Pitch ─────────────────────────────────────────────────────────────────────
-export function Pitch({ assignments, positions, draggingPlayer, onDragStart, onDrop }: PitchProps) {
+export function Pitch({ assignments, positions, draggingPlayer, displayMode, onDragStart, onDrop }: PitchProps) {
     const handleSlotDragStart = (e: React.DragEvent<HTMLDivElement>, player: Player) => {
         setPlayerDragImage(e, player);
         e.dataTransfer.setData('player', JSON.stringify(player));
@@ -106,6 +108,7 @@ export function Pitch({ assignments, positions, draggingPlayer, onDragStart, onD
                         slot={slot}
                         player={assignments[slot.id]}
                         draggingPlayer={draggingPlayer}
+                        displayMode={displayMode}
                         onDrop={onDrop}
                         onDragStart={handleSlotDragStart}
                     />
