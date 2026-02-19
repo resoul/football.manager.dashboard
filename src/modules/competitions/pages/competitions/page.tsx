@@ -1,5 +1,338 @@
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/scroll-area';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function SectionHeader({ title, chevron = true }: { title: string; chevron?: boolean }) {
+    return (
+        <div className="flex items-center justify-between mb-2">
+            <span className={cn('text-xs font-bold uppercase tracking-wider', chevron ? 'text-teal-400 cursor-pointer hover:text-teal-300' : 'text-zinc-400')}>
+                {title} {chevron && <ChevronRight className="inline size-3" />}
+            </span>
+        </div>
+    );
+}
+
+function TeamBadge({ color, size = 'sm' }: { color: string; size?: 'xs' | 'sm' }) {
+    const s = size === 'xs' ? 'size-3' : 'size-4';
+    return (
+        <div className={cn(s, 'rounded-full shrink-0 flex items-center justify-center', color)}>
+            <svg viewBox="0 0 32 36" className={cn(size === 'xs' ? 'size-2' : 'size-2.5', 'text-white/70')} fill="currentColor">
+                <path d="M16 2L3 8v10c0 8.5 5.5 16.5 13 19 7.5-2.5 13-10.5 13-19V8L16 2z" />
+            </svg>
+        </div>
+    );
+}
+
+function PlayerAvatar({ bg = 'bg-zinc-700' }: { bg?: string }) {
+    return (
+        <div className={cn('size-7 rounded-full shrink-0 flex items-center justify-center', bg)}>
+            <svg viewBox="0 0 24 24" className="size-4 text-zinc-400" fill="currentColor">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M12 14c-6 0-8 3-8 5v1h16v-1c0-2-2-5-8-5z" />
+            </svg>
+        </div>
+    );
+}
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+
+const TITLE_HOLDER = { team: 'Man City', badge: 'bg-sky-400' };
+
+const STAGES = 'League Phase';
+
+const LEAGUE_TABLE = [
+    { pos: '1st', team: 'Liverpool', badge: 'bg-red-600', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '2nd', team: 'R. Madrid', badge: 'bg-purple-100', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '3rd', team: 'Man City', badge: 'bg-sky-400', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '4th', team: 'FC Bayern', badge: 'bg-red-700', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '5th', team: 'PSG', badge: 'bg-blue-800', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '6th', team: 'Barcelona', badge: 'bg-red-700', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '7th', team: 'Capitoline', badge: 'bg-yellow-500', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '8th', team: 'Juventus', badge: 'bg-zinc-800', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0, highlighted: true },
+    { pos: '9th', team: 'Man UFC', badge: 'bg-red-600', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '10th', team: 'A. Madrid', badge: 'bg-red-500', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '11th', team: 'Ajax', badge: 'bg-red-700', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '12th', team: 'Feyenoord', badge: 'bg-red-600', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '13th', team: 'Borussia Dortmund', badge: 'bg-yellow-400', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '14th', team: 'Lazio', badge: 'bg-blue-300', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '15th', team: 'AS Monaco', badge: 'bg-red-600', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '16th', team: 'Milan', badge: 'bg-red-700', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '17th', team: 'Parthenope', badge: 'bg-blue-500', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '18th', team: 'RB Leipzig', badge: 'bg-red-500', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '19th', team: 'FC Porto', badge: 'bg-blue-700', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '20th', team: 'FC RB Salzburg', badge: 'bg-red-600', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+    { pos: '21st', team: 'PSV', badge: 'bg-red-500', p: 0, w: 0, d: 0, l: 0, gd: 0, pts: 0 },
+];
+
+const MATCHES = [
+    { home: 'AS Monaco', away: 'Shakhtar', homeBadge: 'bg-red-600', awayBadge: 'bg-orange-500' },
+    { home: 'AZ', away: 'Legia', homeBadge: 'bg-red-500', awayBadge: 'bg-green-600' },
+    { home: 'Blackburn', away: 'Slovan Bratislava', homeBadge: 'bg-blue-700', awayBadge: 'bg-blue-400' },
+    { home: 'Borussia Dortmund', away: 'Celtic', homeBadge: 'bg-yellow-400', awayBadge: 'bg-green-600' },
+    { home: "Borussia M'gladbach", away: 'Fenerbahçe', homeBadge: 'bg-green-700', awayBadge: 'bg-yellow-500' },
+    { home: 'FC Bayern', away: 'Man UFC', homeBadge: 'bg-red-700', awayBadge: 'bg-red-600' },
+    { home: 'Liverpool', away: 'Juventus', homeBadge: 'bg-red-600', awayBadge: 'bg-zinc-800' },
+    { home: 'R. Madrid', away: 'Capitoline', homeBadge: 'bg-purple-100', awayBadge: 'bg-yellow-500' },
+    { home: 'RB Leipzig', away: 'PSV', homeBadge: 'bg-red-500', awayBadge: 'bg-red-500' },
+];
+
+const PAST_WINNERS = [
+    { team: 'Man City', year: '2025/26', badge: 'bg-sky-400' },
+    { team: 'Arsenal', year: '2024/25', badge: 'bg-red-600' },
+    { team: 'Liverpool', year: '2023/24', badge: 'bg-red-600' },
+    { team: 'Liverpool', year: '2022/23', badge: 'bg-red-600' },
+    { team: 'R. Madrid', year: '2021/22', badge: 'bg-purple-100' },
+    { team: 'Chelsea', year: '2020/21', badge: 'bg-blue-700' },
+    { team: 'FC Bayern', year: '2019/20', badge: 'bg-red-700' },
+];
+
+interface PlayerStat {
+    rank: string;
+    name: string;
+    club: string;
+    value: number | string;
+    badge: string;
+}
+
+const GOALS: PlayerStat[] = [
+    { rank: '1st', name: 'V. Pavlidis', club: 'AZ', value: 4, badge: 'bg-red-500' },
+    { rank: '=', name: 'Jakub Latos', club: 'Legia', value: 4, badge: 'bg-green-600' },
+    { rank: '=', name: 'Adrian Petre', club: 'CFR Cluj', value: 4, badge: 'bg-red-800' },
+];
+
+const AVG_RATING: PlayerStat[] = [
+    { rank: '1st', name: 'Domen Črnigoj', club: 'Qarabağ', value: 7.93, badge: 'bg-zinc-700' },
+    { rank: '2nd', name: 'Dennis Politic', club: 'CFR Cluj', value: 7.82, badge: 'bg-red-800' },
+    { rank: '3rd', name: 'Ramón Miérez', club: 'Osijek', value: 7.80, badge: 'bg-blue-600' },
+];
+
+const ASSISTS: PlayerStat[] = [
+    { rank: '1st', name: 'Roger', club: 'CFR Cluj', value: 4, badge: 'bg-red-800' },
+    { rank: '2nd', name: 'Mihael Žaper', club: 'Osijek', value: 4, badge: 'bg-blue-600' },
+    { rank: '=', name: 'João Mário', club: 'Benfica', value: 4, badge: 'bg-red-600' },
+];
+
+const POTM: PlayerStat[] = [
+    { rank: '1st', name: 'Domen Črnigoj', club: 'Qarabağ', value: 3, badge: 'bg-zinc-700' },
+    { rank: '2nd', name: 'Željko Gavrić', club: 'Ferencváros', value: 2, badge: 'bg-green-700' },
+    { rank: '=', name: 'Darius Olaru', club: 'Maccabi Tel-Aviv', value: 2, badge: 'bg-yellow-500' },
+];
+
+const SHUTOUTS: PlayerStat[] = [
+    { rank: '1st', name: 'Jeroen Zoet', club: 'Slovan Bratislava', value: 7, badge: 'bg-blue-400' },
+    { rank: '2nd', name: 'Ondřej Kolář', club: 'Slavia Prague', value: 4, badge: 'bg-red-600' },
+    { rank: '3rd', name: 'Avdo Spahić', club: 'Sarajevo', value: 3, badge: 'bg-red-700' },
+];
+
+const YELLOW_CARDS: PlayerStat[] = [
+    { rank: '1st', name: 'M. Camara', club: 'Young Boys', value: 5, badge: 'bg-yellow-500' },
+    { rank: '=', name: 'Renan Guedes', club: 'Sheriff Tiraspol', value: 3, badge: 'bg-yellow-600' },
+    { rank: '3rd', name: 'Iwan Roberts', club: 'TNS', value: 2, badge: 'bg-green-600' },
+];
+
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+
+function StandingsTable() {
+    return (
+        <div className="border border-zinc-700/60 rounded-lg bg-zinc-900/80 p-3">
+            {/* Title holder */}
+            <div className="flex items-center gap-2 mb-3">
+                <TeamBadge color={TITLE_HOLDER.badge} size="sm" />
+                <div>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Title Holders</p>
+                    <p className="text-xs text-zinc-200 font-semibold">{TITLE_HOLDER.team}</p>
+                </div>
+            </div>
+
+            {/* Stage selector */}
+            <div className="flex items-center gap-2 mb-3">
+                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Stages &gt;</span>
+                <select className="flex-1 bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded px-2 py-1 outline-none">
+                    <option>{STAGES}</option>
+                </select>
+            </div>
+
+            {/* League table */}
+            <table className="w-full text-xs">
+                <thead>
+                    <tr className="text-zinc-600 text-[10px]">
+                        <th className="text-left py-0.5 w-8">POS</th>
+                        <th className="text-left py-0.5 w-4">INF</th>
+                        <th className="text-left py-0.5">TEAM</th>
+                        <th className="text-right py-0.5 w-4">P</th>
+                        <th className="text-right py-0.5 w-4">W</th>
+                        <th className="text-right py-0.5 w-4">D</th>
+                        <th className="text-right py-0.5 w-4">L</th>
+                        <th className="text-right py-0.5 w-6">GD</th>
+                        <th className="text-right py-0.5 w-7">PTS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {LEAGUE_TABLE.map((row) => (
+                        <tr
+                            key={row.pos}
+                            className={cn(
+                                'cursor-pointer hover:bg-zinc-800/30 transition-colors',
+                                row.highlighted && 'bg-zinc-800/50'
+                            )}
+                        >
+                            <td className="py-px text-zinc-500 text-[10px]">{row.pos}</td>
+                            <td className="py-px">
+                                <TeamBadge color={row.badge} size="xs" />
+                            </td>
+                            <td className="py-px">
+                                <span
+                                    className={cn(
+                                        'truncate text-[11px]',
+                                        row.highlighted ? 'text-teal-400 font-medium' : 'text-zinc-300'
+                                    )}
+                                >
+                                    {row.team}
+                                </span>
+                            </td>
+                            <td className="py-px text-right text-zinc-600 text-[10px]">{row.p}</td>
+                            <td className="py-px text-right text-zinc-600 text-[10px]">{row.w}</td>
+                            <td className="py-px text-right text-zinc-600 text-[10px]">{row.d}</td>
+                            <td className="py-px text-right text-zinc-600 text-[10px]">{row.l}</td>
+                            <td className="py-px text-right text-zinc-600 text-[10px]">{row.gd}</td>
+                            <td className="py-px text-right text-zinc-500 text-[10px] font-medium">{row.pts}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function MatchesResults() {
+    return (
+        <div className="border border-zinc-700/60 rounded-lg bg-zinc-900/80 p-3 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+                <SectionHeader title="Matches/Results" />
+                <div className="flex items-center gap-1">
+                    <button className="size-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">
+                        <ChevronLeft className="size-3.5" />
+                    </button>
+                    <button className="size-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">
+                        <ChevronRight className="size-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 font-semibold mb-1">Tuesday 15th September 2026</p>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">League Phase - Kick Off 20:00</p>
+
+            <div className="space-y-0">
+                {MATCHES.map((m, i) => (
+                    <div
+                        key={i}
+                        className={cn(
+                            'grid grid-cols-[1fr_30px_1fr] gap-1 py-1 px-1 text-xs cursor-pointer hover:bg-zinc-800/40 transition-colors rounded',
+                            m.away === 'Juventus' && 'bg-zinc-800/50'
+                        )}
+                    >
+                        <div className="flex items-center gap-1.5">
+                            <TeamBadge color={m.homeBadge} size="xs" />
+                            <span className="text-zinc-300 truncate">{m.home}</span>
+                        </div>
+                        <span className="text-zinc-500 text-center text-[10px]">vs</span>
+                        <div className="flex items-center justify-end gap-1.5">
+                            <span className="text-zinc-300 truncate text-right">{m.away}</span>
+                            <TeamBadge color={m.awayBadge} size="xs" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function PastWinners() {
+    return (
+        <div className="border border-zinc-700/60 rounded-lg bg-zinc-900/80 p-3">
+            <SectionHeader title="Past Winners" />
+            <div className="space-y-1.5">
+                {PAST_WINNERS.map((w, i) => (
+                    <div key={i} className="flex items-center gap-2 hover:bg-zinc-800/40 cursor-pointer transition-colors rounded px-1 py-0.5">
+                        <TeamBadge color={w.badge} size="sm" />
+                        <span className="text-xs text-zinc-300 flex-1">{w.team}</span>
+                        <span className="text-[10px] text-zinc-500">{w.year}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function PlayerStatBlock({ title, stats, showValue = true }: { title: string; stats: PlayerStat[]; showValue?: boolean }) {
+    return (
+        <div>
+            <p className="text-[10px] font-bold text-teal-400 uppercase tracking-wider mb-2">
+                {title} <ChevronRight className="inline size-2.5" />
+            </p>
+            <div className="space-y-1">
+                {stats.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 hover:bg-zinc-800/30 cursor-pointer transition-colors rounded px-0.5 py-0.5">
+                        <span className="text-[10px] text-zinc-500 w-5 shrink-0">{s.rank}</span>
+                        <PlayerAvatar />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-zinc-300 truncate leading-tight">{s.name}</p>
+                            <p className="text-[10px] text-zinc-500 truncate leading-tight">{s.club}</p>
+                        </div>
+                        <TeamBadge color={s.badge} size="xs" />
+                        {showValue && (
+                            <span className="text-xs text-zinc-300 font-bold w-6 text-right shrink-0">{s.value}</span>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function PlayerStatsPanel() {
+    return (
+        <div className="border border-zinc-700/60 rounded-lg bg-zinc-900/80 p-3">
+            <SectionHeader title="Player Stats" />
+            <div className="grid grid-cols-3 gap-4 mb-4">
+                <PlayerStatBlock title="Goals" stats={GOALS} />
+                <PlayerStatBlock title="Average Rating" stats={AVG_RATING} />
+                <PlayerStatBlock title="Assists" stats={ASSISTS} />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+                <PlayerStatBlock title="Player of Match" stats={POTM} />
+                <PlayerStatBlock title="Shutouts" stats={SHUTOUTS} />
+                <PlayerStatBlock title="Yellow Cards" stats={YELLOW_CARDS} />
+            </div>
+        </div>
+    );
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+
 export function Page() {
     return (
-        <div></div>
+        <div className="h-[calc(100vh-120px)] px-2.5 pb-2.5">
+            <ScrollArea className="h-full">
+                <div className="pr-2 space-y-2 pb-4">
+                    {/* Top row — 3-column layout */}
+                    <div className="grid grid-cols-[280px_1fr_200px] gap-2">
+                        {/* Left: Standings */}
+                        <StandingsTable />
+
+                        {/* Center: Matches / Results */}
+                        <MatchesResults />
+
+                        {/* Right: Past Winners */}
+                        <PastWinners />
+                    </div>
+
+                    {/* Bottom: Player Stats */}
+                    <PlayerStatsPanel />
+                </div>
+            </ScrollArea>
+        </div>
     );
 }

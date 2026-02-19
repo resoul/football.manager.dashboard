@@ -2,6 +2,7 @@ import { ThemeProvider } from 'next-themes';
 import { HelmetProvider } from '@packages/react-helmet-async';
 import { BrowserRouter } from 'react-router-dom';
 import { ModuleProvider } from "./providers/module-provider";
+import { AuthProvider } from "./providers/auth-provider";
 import { LoadingBarContainer } from 'react-top-loading-bar';
 import { Toaster } from '@/components/sonner';
 
@@ -20,8 +21,10 @@ export default function App() {
             <HelmetProvider>
                 <LoadingBarContainer>
                     <BrowserRouter basename={BASE_URL}>
-                        <Toaster />
-                        <ModuleProvider />
+                        <AuthProvider>
+                            <Toaster />
+                            <ModuleProvider />
+                        </AuthProvider>
                     </BrowserRouter>
                 </LoadingBarContainer>
             </HelmetProvider>

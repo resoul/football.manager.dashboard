@@ -94,7 +94,7 @@ const MENU_CONFIG: MenuConfig[] = [
     },
     {
         title: 'Competitions',
-        path: '/fixtures',
+        path: '/competitions',
         icon: Trophy,
     },
     {

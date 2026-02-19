@@ -83,7 +83,7 @@ export function UserPanel() {
 								<span className="text-xs text-muted-foreground font-normal leading-none">{account.email}</span>
 							</div>
 						</DropdownMenuItem>
-					))}                         
+					))}
 					<DropdownMenuSeparator />
 					<DropdownMenuItem className="ps-3.5">
 						<Plus />

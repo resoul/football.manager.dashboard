@@ -6,6 +6,9 @@ A modern, feature-rich **Football Manager**-style web application built with Rea
 
 ## 📸 Screenshots
 
+### Auth Flwo
+![Auth](screenshots/screenshot-3.png)
+
 ### Tactics — Pitch View
 ![Tactics Pitch](screenshots/screenshot-2.png)
 
@@ -33,6 +36,9 @@ A modern, feature-rich **Football Manager**-style web application built with Rea
 ```bash
 # Install dependencies
 npm install
+
+# Configure API base URL
+echo "VITE_API_BASE_URL=http://api.manager.localhost/api/v1" > .env.local
 
 # Start development server
 npm run dev

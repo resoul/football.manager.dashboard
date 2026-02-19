@@ -3,7 +3,7 @@ import { type MenuItem } from '@/layout/components/types';
 export const getMenuItems = (): MenuItem => {
     return {
         children: [
-            { title: 'Overview', path: '/tactics/fixtures' },
+            { title: 'Overview', path: '/tactics/overview' },
             { title: 'Player', path: '/tactics/player' },
             { title: 'Set Pieces', children: [
                     { title: 'Set Piece Takers', path: '/tactics/set-piece-takers' },
