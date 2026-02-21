@@ -35,7 +35,7 @@ export function UserPanel() {
   const navigate = useNavigate();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const { user, careers, logout } = useAuth();
-  const userDisplayName = user?.fullName || user?.username || 'User';
+  const userDisplayName = user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || '';
   const userInitials = getInitials(userDisplayName);
 

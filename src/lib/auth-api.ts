@@ -2,6 +2,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL;
 const AUTH_API_BASE = `${API_BASE}/auth`;
 const USERS_API_BASE = `${API_BASE}/users`;
 const MANAGERS_API_BASE = `${API_BASE}/managers`;
+const COUNTRIES_API_BASE = `${API_BASE}/countries`;
 const CAREERS_API_BASE = `${API_BASE}/careers`;
 
 export const AUTH_TOKEN_KEY = 'fm-auth-token';
@@ -24,10 +25,11 @@ function getStoredToken(): string | null {
     }
 }
 
-function buildHeaders(headers?: HeadersInit): Headers {
+function buildHeaders(body?: BodyInit | null, headers?: HeadersInit): Headers {
     const finalHeaders = new Headers(headers);
 
-    if (!finalHeaders.has('Content-Type')) {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    if (!isFormData && !finalHeaders.has('Content-Type')) {
         finalHeaders.set('Content-Type', 'application/json');
     }
 
@@ -72,7 +74,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, {
         ...init,
         credentials: init?.credentials ?? 'include',
-        headers: buildHeaders(init?.headers),
+        headers: buildHeaders(init?.body ?? null, init?.headers),
     });
 
     const body = await parseResponse(response);
@@ -94,6 +96,10 @@ export function usersRequest<T>(path: string, init?: RequestInit) {
 
 export function managersRequest<T>(path: string, init?: RequestInit) {
     return request<T>(`${MANAGERS_API_BASE}${path}`, init);
+}
+
+export function countriesRequest<T>(path: string, init?: RequestInit) {
+    return request<T>(`${COUNTRIES_API_BASE}${path}`, init);
 }
 
 export function careersRequest<T>(path: string, init?: RequestInit) {

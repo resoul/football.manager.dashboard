@@ -1,9 +1,13 @@
 import { createContext, useContext } from 'react';
 
 export interface User {
-    username: string;
-    fullName: string;
     email: string;
+}
+
+export interface Country {
+    id: number;
+    code: string;
+    name: string;
 }
 
 export interface Career {
@@ -31,11 +35,11 @@ export interface AuthContextType {
     activeCareerId: number | null;
     user: User | null;
     login: (email: string, password: string) => Promise<AuthActionResult>;
-    register: (username: string, fullName: string, email: string, password: string) => Promise<AuthActionResult>;
+    register: (email: string, password: string) => Promise<AuthActionResult>;
     requestPasswordReset: (email: string) => Promise<AuthActionResult>;
     resetPassword: (email: string, code: string, newPassword: string) => Promise<AuthActionResult>;
     confirmAccount: (email: string, code: string) => Promise<AuthActionResult>;
-    completeOnboarding: (firstName: string, lastName: string, birthday: string) => Promise<AuthActionResult>;
+    completeOnboarding: (name: string, countryId: number, avatar: File) => Promise<AuthActionResult>;
     createCareer: (name: string) => Promise<AuthActionResult>;
     selectCareer: (careerId: number) => void;
     logout: () => Promise<void>;

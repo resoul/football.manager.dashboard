@@ -23,10 +23,6 @@ type AuthResponse = {
 };
 
 type ApiUser = {
-    username?: string;
-    full_name?: string;
-    fullName?: string;
-    name?: string;
     email?: string;
 };
 
@@ -42,13 +38,11 @@ function getStoredCurrentUser(): User | null {
         }
 
         const parsed = JSON.parse(raw) as Partial<User>;
-        if (!parsed.email || !parsed.username) {
+        if (!parsed.email) {
             return null;
         }
 
         return {
-            username: parsed.username,
-            fullName: parsed.fullName || parsed.username,
             email: parsed.email,
         };
     } catch {
@@ -77,14 +71,8 @@ function extractToken(payload?: AuthResponse): string | undefined {
 }
 
 function mapApiUser(user: ApiUser): User {
-    const email = user.email ?? '';
-    const fullName = user.full_name || user.fullName || user.name || '';
-    const username = user.username || user.name || fullName || (email.includes('@') ? email.split('@')[0] : email);
-
     return {
-        username: username || 'Manager',
-        fullName: fullName || username || 'Manager',
-        email,
+        email: user.email ?? '',
     };
 }
 
@@ -330,11 +318,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [hydrateCurrentUser, syncOnboardingState, syncCareerState]);
 
-    const register = useCallback(async (username: string, fullName: string, email: string, password: string): Promise<AuthActionResult> => {
+    const register = useCallback(async (email: string, password: string): Promise<AuthActionResult> => {
         try {
             const response = await authRequest<AuthResponse>('/registration', {
                 method: 'POST',
-                body: JSON.stringify({ username, full_name: fullName, email, password }),
+                body: JSON.stringify({ email, password }),
             });
             clearAuthSession();
 
@@ -429,15 +417,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [hydrateCurrentUser, syncOnboardingState, syncCareerState]);
 
-    const completeOnboarding = useCallback(async (firstName: string, lastName: string, birthday: string): Promise<AuthActionResult> => {
+    const completeOnboarding = useCallback(async (name: string, countryId: number, avatar: File): Promise<AuthActionResult> => {
         try {
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('country_id', String(countryId));
+            formData.append('avatar', avatar);
+
             const response = await managersRequest<{ message?: string }>('/me', {
                 method: 'POST',
-                body: JSON.stringify({
-                    first_name: firstName,
-                    last_name: lastName,
-                    birthday,
-                }),
+                body: formData,
             });
 
             setNeedsOnboarding(false);
